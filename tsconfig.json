@@ -9,9 +9,11 @@
       "@/assets/*": [
         "./assets/*"
       ]
-    }
+    },
+    "types": ["jest"]
   },
   "include": [
+    "global.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
