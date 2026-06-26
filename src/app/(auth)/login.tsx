@@ -1,12 +1,22 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  TextInput,
+} from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../auth/AuthProvider";
-import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
+import { Ionicons } from "@expo/vector-icons";
 
 const loginSchema = z.object({
   email: z.string().min(1, "O e-mail é obrigatório").email("Formato de e-mail inválido"),
@@ -20,6 +30,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const [apiError, setApiError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     control,
@@ -27,10 +38,7 @@ export default function LoginScreen() {
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
   });
 
   const onSubmit = async (data: LoginFormValues) => {
@@ -50,70 +58,122 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={styles.brand}>BSM SYSTEM</Text>
-          <Text style={styles.subtitle}>Gestão e Calibração de Equipamentos</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Logo section */}
+        <View style={styles.logoSection}>
+          <View style={styles.logoBox}>
+            <Image
+              source={require("../../../assets/logo.png")}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
+          <Text style={styles.brand}>BSM</Text>
+          <Text style={styles.subtitle}>GESTÃO DE EQUIPAMENTOS</Text>
         </View>
 
-        <View style={styles.formCard}>
-          <Text style={styles.title}>Acessar Conta</Text>
-
+        {/* Form */}
+        <View style={styles.form}>
           {apiError && (
             <View style={styles.errorBanner}>
               <Text style={styles.errorText}>{apiError}</Text>
             </View>
           )}
 
+          {/* Email */}
           <Controller
             control={control}
             name="email"
             render={({ field: { onChange, onBlur, value } }) => (
-              <Input
-                label="Endereço de E-mail"
-                placeholder="exemplo@empresa.com"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-                error={errors.email?.message}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+              <View style={styles.fieldContainer}>
+                <View style={[styles.inputWrapper, errors.email && styles.inputWrapperError]}>
+                  <Ionicons name="mail-outline" size={18} color="rgba(255,255,255,0.5)" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="seu@email.com"
+                    placeholderTextColor="rgba(255,255,255,0.35)"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+                {errors.email && <Text style={styles.fieldError}>{errors.email.message}</Text>}
+              </View>
             )}
           />
 
+          {/* Password */}
           <Controller
             control={control}
             name="password"
             render={({ field: { onChange, onBlur, value } }) => (
-              <Input
-                label="Senha de Acesso"
-                placeholder="Digite sua senha"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-                error={errors.password?.message}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+              <View style={styles.fieldContainer}>
+                <View style={[styles.inputWrapper, errors.password && styles.inputWrapperError]}>
+                  <Ionicons name="lock-closed-outline" size={18} color="rgba(255,255,255,0.5)" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="••••••••"
+                    placeholderTextColor="rgba(255,255,255,0.35)"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                    <Ionicons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={18}
+                      color="rgba(255,255,255,0.5)"
+                    />
+                  </TouchableOpacity>
+                </View>
+                {errors.password && <Text style={styles.fieldError}>{errors.password.message}</Text>}
+              </View>
             )}
           />
 
+          <TouchableOpacity
+            onPress={() => router.push("/(auth)/forgot-password" as any)}
+            style={styles.forgotBtn}
+          >
+            <Text style={styles.forgotText}>Esqueceu sua senha?</Text>
+          </TouchableOpacity>
+
           <Button
-            title="Entrar no Sistema"
+            title="Entrar"
             onPress={handleSubmit(onSubmit)}
             loading={loading}
             style={styles.submitBtn}
           />
-
-          <TouchableOpacity onPress={() => router.push("/(auth)/forgot-password" as any)} style={styles.forgotBtn}>
-            <Text style={styles.forgotText}>Esqueceu sua senha?</Text>
-          </TouchableOpacity>
         </View>
 
-        <Text style={styles.footer}>© {new Date().getFullYear()} BSM System. Versão Mobile.</Text>
+        {/* Lab illustration */}
+        <View style={styles.illustrationRow}>
+          <Image
+            source={require("../../../assets/login-microscope.png")}
+            style={styles.illustrationImg}
+            resizeMode="contain"
+          />
+          <Image
+            source={require("../../../assets/login-flask.png")}
+            style={styles.illustrationImg}
+            resizeMode="contain"
+          />
+          <Image
+            source={require("../../../assets/login-multimeter.png")}
+            style={styles.illustrationImg}
+            resizeMode="contain"
+          />
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -122,56 +182,56 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0B0B0C", // Deep Operational Charcoal
+    backgroundColor: "#071426",
   },
   scrollContainer: {
     flexGrow: 1,
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 40,
+    paddingHorizontal: 28,
+    paddingTop: 70,
+    paddingBottom: 20,
   },
-  header: {
+  logoSection: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 44,
+  },
+  logoBox: {
+    width: 76,
+    height: 76,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  logoImage: {
+    width: 60,
+    height: 60,
   },
   brand: {
-    fontSize: 32,
-    fontWeight: "900",
-    color: "#6366F1", // Electric Indigo
-    letterSpacing: 2,
+    fontSize: 34,
+    fontWeight: "800",
+    color: "#ffffff",
+    letterSpacing: 3,
   },
   subtitle: {
-    fontSize: 14,
-    color: "#64748B",
-    marginTop: 8,
-    textAlign: "center",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.4)",
+    marginTop: 4,
+    letterSpacing: 1.5,
   },
-  formCard: {
-    backgroundColor: "#111214",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#2E3033",
-    padding: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#F8FAFC",
-    marginBottom: 20,
-    textAlign: "center",
+  form: {
+    width: "100%",
   },
   errorBanner: {
-    backgroundColor: "#450A0A",
+    backgroundColor: "rgba(239,68,68,0.15)",
     borderColor: "#EF4444",
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 10,
     padding: 12,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   errorText: {
     color: "#FCA5A5",
@@ -179,22 +239,65 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     textAlign: "center",
   },
-  submitBtn: {
-    marginTop: 16,
+  fieldContainer: {
+    marginBottom: 12,
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    paddingHorizontal: 14,
+  },
+  inputWrapperError: {
+    borderColor: "#EF4444",
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    color: "#ffffff",
+    fontSize: 15,
+    height: "100%",
+  },
+  eyeBtn: {
+    padding: 6,
+  },
+  fieldError: {
+    color: "#FCA5A5",
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
   },
   forgotBtn: {
-    alignItems: "center",
-    paddingVertical: 12,
+    alignSelf: "flex-end",
+    paddingVertical: 8,
+    marginBottom: 4,
   },
   forgotText: {
-    color: "#6366F1",
+    color: "rgba(255,255,255,0.45)",
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "500",
   },
-  footer: {
-    fontSize: 12,
-    color: "#475569",
-    textAlign: "center",
-    marginTop: 40,
+  submitBtn: {
+    height: 52,
+    borderRadius: 12,
+    marginVertical: 0,
+  },
+  illustrationRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    marginTop: 36,
+    gap: 12,
+  },
+  illustrationImg: {
+    width: 88,
+    height: 100,
+    opacity: 0.55,
   },
 });

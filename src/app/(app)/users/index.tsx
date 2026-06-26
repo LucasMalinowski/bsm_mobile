@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator, Alert } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { usersApi } from "../../../api/users";
@@ -17,6 +18,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 export default function UsersListScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user, activeCompanyId } = useAuth();
   const [search, setSearch] = useState("");
   const companyId = user?.role === "super_admin" ? activeCompanyId ?? undefined : undefined;
@@ -34,7 +36,7 @@ export default function UsersListScreen() {
 
   return (
     <View style={s.container}>
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: 12 + insets.top, minHeight: 64 + insets.top }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backAction}>
           <Ionicons name="arrow-back" size={24} color="#F8FAFC" />
         </TouchableOpacity>
@@ -113,7 +115,7 @@ export default function UsersListScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0F0F10" },
-  header: { height: 64, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033", paddingHorizontal: 16, paddingTop: 12 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033", paddingHorizontal: 16, paddingBottom: 12 },
   backAction: { padding: 4 },
   headerTitle: { color: "#F8FAFC", fontSize: 16, fontWeight: "700", flex: 1, marginLeft: 12 },
   headerBtn: { padding: 6 },

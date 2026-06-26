@@ -43,12 +43,12 @@ export default function ForgotPasswordScreen() {
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={s.container}>
       <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#94A3B8" />
+          <Ionicons name="arrow-back" size={22} color="#6b7280" />
           <Text style={s.backText}>Voltar</Text>
         </TouchableOpacity>
 
         <View style={s.header}>
-          <Ionicons name="lock-open-outline" size={48} color="#6366F1" />
+          <Ionicons name="lock-open-outline" size={48} color="#0363a9" />
           <Text style={s.title}>Recuperar Senha</Text>
           <Text style={s.subtitle}>
             Informe seu e-mail para receber o link de redefinição de senha.
@@ -106,18 +106,18 @@ export default function ForgotPasswordScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0B0B0C" },
+  container: { flex: 1, backgroundColor: "#f9fafb" },
   scroll: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 40 },
   backBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 32 },
-  backText: { color: "#94A3B8", fontSize: 14 },
+  backText: { color: "#6b7280", fontSize: 14 },
   header: { alignItems: "center", marginBottom: 32 },
-  title: { fontSize: 24, fontWeight: "800", color: "#F8FAFC", marginTop: 16, letterSpacing: 0.5 },
-  subtitle: { fontSize: 14, color: "#64748B", marginTop: 8, textAlign: "center", lineHeight: 20 },
-  card: { backgroundColor: "#111214", borderRadius: 16, borderWidth: 1, borderColor: "#2E3033", padding: 24 },
-  errorBanner: { backgroundColor: "#450A0A", borderColor: "#EF4444", borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 16 },
-  errorText: { color: "#FCA5A5", fontSize: 13, fontWeight: "500", textAlign: "center" },
+  title: { fontSize: 24, fontWeight: "800", color: "#111827", marginTop: 16, letterSpacing: 0.5 },
+  subtitle: { fontSize: 14, color: "#6b7280", marginTop: 8, textAlign: "center", lineHeight: 20 },
+  card: { backgroundColor: "#ffffff", borderRadius: 16, borderWidth: 1, borderColor: "#e5e7eb", padding: 24, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 },
+  errorBanner: { backgroundColor: "#fee2e2", borderColor: "#fca5a5", borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 16 },
+  errorText: { color: "#b91c1c", fontSize: 13, fontWeight: "500", textAlign: "center" },
   submitBtn: { marginTop: 16 },
   successBox: { alignItems: "center", paddingVertical: 8 },
-  successTitle: { fontSize: 18, fontWeight: "700", color: "#F8FAFC", marginTop: 12 },
-  successText: { fontSize: 13, color: "#64748B", textAlign: "center", lineHeight: 20, marginTop: 8, marginBottom: 24 },
+  successTitle: { fontSize: 18, fontWeight: "700", color: "#111827", marginTop: 12 },
+  successText: { fontSize: 13, color: "#6b7280", textAlign: "center", lineHeight: 20, marginTop: 8, marginBottom: 24 },
 });

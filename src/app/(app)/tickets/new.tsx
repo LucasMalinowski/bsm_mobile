@@ -4,6 +4,7 @@ import {
   Alert, KeyboardAvoidingView, Platform, Image, ActivityIndicator, Modal, TextInput,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -44,6 +45,7 @@ const TYPES = [
 
 export default function NewTicketScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ equipment_id?: string }>();
   const queryClient = useQueryClient();
   const { user, activeCompanyId } = useAuth();
@@ -105,7 +107,7 @@ export default function NewTicketScreen() {
 
   return (
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: 12 + insets.top, minHeight: 64 + insets.top }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backAction}>
           <Ionicons name="arrow-back" size={24} color="#F8FAFC" />
         </TouchableOpacity>
@@ -285,7 +287,7 @@ export default function NewTicketScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0F0F10" },
-  header: { height: 64, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033", paddingHorizontal: 16, paddingTop: 12 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033", paddingHorizontal: 16, paddingBottom: 12 },
   backAction: { padding: 4 },
   headerTitle: { color: "#F8FAFC", fontSize: 16, fontWeight: "700" },
   scroll: { padding: 16, paddingBottom: 40 },

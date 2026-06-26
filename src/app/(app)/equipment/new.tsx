@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Switch, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -21,6 +22,7 @@ const schema = z.object({
   serial_number: z.string().optional(),
   location: z.string().optional(),
   acquisition_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato deve ser AAAA-MM-DD").or(z.literal("")).optional(),
+  acquisition_cost: z.string().optional(),
   status: z.enum(["active", "inactive", "under_maintenance", "calibration", "retired"]),
   requires_calibration: z.boolean().default(true),
   calibration_periodicity: z.enum(["semestral", "anual", "bi_anual", "tri_anual", "outro"]).nullable().optional(),
@@ -48,6 +50,7 @@ const STATUSES = [
 
 export default function NewEquipmentScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { user, activeCompanyId } = useAuth();
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -77,9 +80,10 @@ export default function NewEquipmentScreen() {
     mutationFn: (data: FormValues) => equipmentApi.create({
       ...data,
       acquisition_date: data.acquisition_date || null,
+      acquisition_cost: data.acquisition_cost ? Number(data.acquisition_cost) : null,
       calibration_periodicity: data.requires_calibration ? data.calibration_periodicity : null,
       company_id: user?.role === "super_admin" ? activeCompanyId ?? undefined : undefined,
-    }),
+    } as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment"] });
       Alert.alert("Sucesso", "Equipamento registrado com sucesso!");
@@ -136,7 +140,7 @@ export default function NewEquipmentScreen() {
       style={styles.container}
     >
       {/* Header Bar */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: 12 + insets.top, minHeight: 64 + insets.top }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backAction}>
           <Ionicons name="arrow-back" size={24} color="#F8FAFC" />
         </TouchableOpacity>
@@ -290,6 +294,21 @@ export default function NewEquipmentScreen() {
             )}
           />
 
+          <Controller
+            control={control}
+            name="acquisition_cost"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input
+                label="Custo de Aquisição (R$)"
+                placeholder="Ex: 15000.00"
+                onBlur={onBlur}
+                onChangeText={onChange}
+                value={value ?? ""}
+                keyboardType="decimal-pad"
+              />
+            )}
+          />
+
           {/* Status selector */}
           <Text style={styles.fieldLabel}>Status Operacional</Text>
           <Controller
@@ -399,7 +418,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#0F0F10",
   },
   header: {
-    height: 64,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -407,7 +425,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#2E3033",
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingBottom: 12,
   },
   backAction: {
     padding: 4,

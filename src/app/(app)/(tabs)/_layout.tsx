@@ -1,67 +1,28 @@
 import React from "react";
-import { View, StyleSheet } from "react-native";
+import { View, TouchableOpacity, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
-import { notificationsApi } from "../../../api/notifications";
-
-function NotificationTabIcon({ color, focused }: { color: string; focused: boolean }) {
-  const { data } = useQuery({
-    queryKey: ["notifications", "unread"],
-    queryFn: () => notificationsApi.list(true),
-    // Poll every 60 s so badge stays fresh
-    refetchInterval: 60_000,
-  });
-
-  const unreadCount = data?.data?.length ?? 0;
-
-  return (
-    <View>
-      <Ionicons name={focused ? "notifications" : "notifications-outline"} size={20} color={color} />
-      {unreadCount > 0 && (
-        <View style={styles.badge}>
-          <View style={styles.badgeDot} />
-        </View>
-      )}
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  badge: {
-    position: "absolute",
-    top: -2,
-    right: -4,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#111214",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  badgeDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: "#EF4444",
-  },
-});
+import { useTheme } from "../../../contexts/ThemeContext";
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  const { colors: c } = useTheme();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: "#111214",
-          borderTopColor: "#2E3033",
+          backgroundColor: c.tabBar,
+          borderTopColor: c.tabBorder,
           borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
+          height: 60 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: "#6366F1",
-        tabBarInactiveTintColor: "#5E636E",
+        tabBarActiveTintColor: c.tabActive,
+        tabBarInactiveTintColor: c.tabInactive,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "500",
@@ -87,6 +48,18 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="scan"
+        options={{
+          title: "Escanear",
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.scanIcon, { backgroundColor: c.primary }]}>
+              <Ionicons name="qr-code" size={22} color="#ffffff" />
+            </View>
+          ),
+          tabBarLabel: () => null,
+        }}
+      />
+      <Tabs.Screen
         name="tickets"
         options={{
           title: "Chamados",
@@ -96,24 +69,43 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="reports"
+        options={{
+          title: "Relatórios",
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="bar-chart-outline" size={20} color={color} />
+          ),
+        }}
+      />
+      {/* Hidden from tab bar but still navigable */}
+      <Tabs.Screen
         name="documents"
         options={{
-          title: "Documentos",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "document-text" : "document-text-outline"} size={20} color={color} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen
         name="notifications"
         options={{
-          title: "Notificações",
-          tabBarIcon: ({ color, focused }) => (
-            <NotificationTabIcon color={color} focused={focused} />
-          ),
+          href: null,
         }}
       />
     </Tabs>
   );
 }
 
+const styles = StyleSheet.create({
+  scanIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: -20,
+    shadowColor: "#0363a9",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+});

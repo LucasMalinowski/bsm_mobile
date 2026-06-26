@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Switch, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -20,6 +21,7 @@ const schema = z.object({
   serial_number: z.string().optional(),
   location: z.string().optional(),
   acquisition_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato deve ser AAAA-MM-DD").or(z.literal("")).optional(),
+  acquisition_cost: z.string().optional(),
   status: z.enum(["active", "inactive", "under_maintenance", "calibration", "retired"]),
   requires_calibration: z.boolean().default(true),
   calibration_periodicity: z.enum(["semestral", "anual", "bi_anual", "tri_anual", "outro"]).nullable().optional(),
@@ -46,8 +48,10 @@ const STATUSES = [
 ] as const;
 
 export default function EditEquipmentScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string }>();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -73,6 +77,7 @@ export default function EditEquipmentScreen() {
         serial_number: eq.serial_number || "",
         location: eq.location || "",
         acquisition_date: eq.acquisition_date || "",
+        acquisition_cost: eq.acquisition_cost != null ? String(eq.acquisition_cost) : "",
         status: eq.status,
         requires_calibration: eq.requires_calibration,
         calibration_periodicity: eq.calibration_periodicity || "anual",
@@ -89,11 +94,16 @@ export default function EditEquipmentScreen() {
   const requiresCalibration = watch("requires_calibration");
 
   const updateMutation = useMutation({
-    mutationFn: (data: FormValues) => equipmentApi.update(id, {
-      ...data,
-      acquisition_date: data.acquisition_date || null,
-      calibration_periodicity: data.requires_calibration ? data.calibration_periodicity : null,
-    }),
+    mutationFn: (data: FormValues) => {
+      const payload = {
+        ...data,
+        category_name: data.category_name || undefined,
+        acquisition_date: data.acquisition_date || null,
+        acquisition_cost: data.acquisition_cost ? Number(data.acquisition_cost) : null,
+        calibration_periodicity: data.requires_calibration ? data.calibration_periodicity : null,
+      };
+      return equipmentApi.update(id, payload as any);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment", id] });
       queryClient.invalidateQueries({ queryKey: ["equipment"] });
@@ -104,6 +114,10 @@ export default function EditEquipmentScreen() {
       Alert.alert("Erro", err.message || "Erro ao salvar alterações.");
     },
   });
+
+  const onSubmit = (data: FormValues) => {
+    updateMutation.mutate(data);
+  };
 
   const selectPhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -140,10 +154,6 @@ export default function EditEquipmentScreen() {
     }
   };
 
-  const onSubmit = (data: FormValues) => {
-    updateMutation.mutate(data);
-  };
-
   if (loadingDetail) {
     return (
       <View style={styles.centerContainer}>
@@ -170,7 +180,7 @@ export default function EditEquipmentScreen() {
       style={styles.container}
     >
       {/* Header Bar */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: 12 + insets.top, minHeight: 64 + insets.top }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backAction}>
           <Ionicons name="arrow-back" size={24} color="#F8FAFC" />
         </TouchableOpacity>
@@ -324,6 +334,21 @@ export default function EditEquipmentScreen() {
             )}
           />
 
+          <Controller
+            control={control}
+            name="acquisition_cost"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <Input
+                label="Custo de Aquisição (R$)"
+                placeholder="Ex: 15000.00"
+                onBlur={onBlur}
+                onChangeText={onChange}
+                value={value ?? ""}
+                keyboardType="decimal-pad"
+              />
+            )}
+          />
+
           <Text style={styles.fieldLabel}>Status Operacional</Text>
           <Controller
             control={control}
@@ -455,7 +480,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   header: {
-    height: 64,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -463,7 +487,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#2E3033",
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingBottom: 12,
   },
   backAction: {
     padding: 4,

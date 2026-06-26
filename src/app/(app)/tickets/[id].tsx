@@ -4,6 +4,7 @@ import {
   ActivityIndicator, TextInput, Alert, KeyboardAvoidingView, Platform, Image, RefreshControl, Modal, FlatList,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -14,6 +15,8 @@ import { Badge } from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
 import { ticketsApi } from "../../../api/tickets";
 import { TicketStatus } from "../../../types/api";
+import { differenceInDays, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const NEXT_STATUSES: Record<TicketStatus, TicketStatus[]> = {
   open: ["in_progress", "waiting", "closed"],
@@ -34,6 +37,7 @@ const STATUS_LABELS: Record<TicketStatus, string> = {
 export default function TicketDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [comment, setComment] = useState("");
@@ -138,10 +142,19 @@ export default function TicketDetailScreen() {
   const comments = ticket.comments ?? [];
   const nextStatuses = NEXT_STATUSES[ticket.status] ?? [];
 
+  const fmtTs = (ts: string) =>
+    format(new Date(ts), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+
+  const daysDiff = (from: string, to: string) => {
+    const d = differenceInDays(new Date(to), new Date(from));
+    if (d === 0) return "< 1 dia";
+    return d === 1 ? "1 dia" : `${d} dias`;
+  };
+
   return (
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       {/* Header */}
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: 12 + insets.top, minHeight: 64 + insets.top }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backAction}>
           <Ionicons name="arrow-back" size={24} color="#F8FAFC" />
         </TouchableOpacity>
@@ -188,6 +201,50 @@ export default function TicketDetailScreen() {
               </View>
             )}
           </View>
+        </Card>
+
+        {/* Timestamps */}
+        <Card style={s.tsCard}>
+          <Text style={s.sectionLabel}>Rastreamento de Tempo</Text>
+          <View style={s.tsRow}>
+            <Text style={s.tsLabel}>Criado</Text>
+            <Text style={s.tsValue}>{fmtTs(ticket.created_at)}</Text>
+          </View>
+          {ticket.picked_up_at ? (
+            <View style={s.tsRow}>
+              <Text style={s.tsLabel}>Retirado</Text>
+              <View style={s.tsRight}>
+                <Text style={s.tsValue}>{fmtTs(ticket.picked_up_at)}</Text>
+                <Text style={s.tsDelta}>+{daysDiff(ticket.created_at, ticket.picked_up_at)} desde abertura</Text>
+              </View>
+            </View>
+          ) : null}
+          {ticket.returned_at ? (
+            <View style={s.tsRow}>
+              <Text style={s.tsLabel}>Devolvido</Text>
+              <View style={s.tsRight}>
+                <Text style={s.tsValue}>{fmtTs(ticket.returned_at)}</Text>
+                {ticket.picked_up_at ? (
+                  <Text style={s.tsDelta}>{daysDiff(ticket.picked_up_at, ticket.returned_at)} em reparo</Text>
+                ) : null}
+              </View>
+            </View>
+          ) : null}
+          {ticket.closed_at ? (
+            <View style={s.tsRow}>
+              <Text style={s.tsLabel}>Fechado</Text>
+              <View style={s.tsRight}>
+                <Text style={s.tsValue}>{fmtTs(ticket.closed_at)}</Text>
+                <Text style={s.tsDelta}>Total: {daysDiff(ticket.created_at, ticket.closed_at)}</Text>
+              </View>
+            </View>
+          ) : null}
+          {!ticket.picked_up_at && !ticket.returned_at && !ticket.closed_at ? (
+            <View style={s.tsRow}>
+              <Text style={s.tsLabel}>Aberto há</Text>
+              <Text style={s.tsValue}>{daysDiff(ticket.created_at, new Date().toISOString())}</Text>
+            </View>
+          ) : null}
         </Card>
 
         {/* Status Transitions */}
@@ -386,7 +443,7 @@ const s = StyleSheet.create({
   errorText: { color: "#EF4444", fontSize: 15, marginTop: 12, textAlign: "center", marginBottom: 16 },
   backBtn: { backgroundColor: "#6366F1", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
   backBtnText: { color: "#FFFFFF", fontWeight: "600" },
-  header: { height: 64, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033", paddingHorizontal: 16, paddingTop: 12 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033", paddingHorizontal: 16, paddingBottom: 12 },
   backAction: { padding: 4 },
   headerTitle: { color: "#F8FAFC", fontSize: 16, fontWeight: "700", maxWidth: "80%" },
   scroll: { padding: 16, paddingBottom: 48 },
@@ -434,4 +491,10 @@ const s = StyleSheet.create({
   assignAvatarText: { color: "#818CF8", fontSize: 12, fontWeight: "700" },
   assignName: { color: "#E2E8F0", fontSize: 14, fontWeight: "600" },
   assignEmail: { color: "#64748B", fontSize: 12, marginTop: 1 },
+  tsCard: { backgroundColor: "#151618", marginBottom: 12 },
+  tsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#212225" },
+  tsLabel: { color: "#64748B", fontSize: 12, fontWeight: "500", paddingTop: 2 },
+  tsRight: { alignItems: "flex-end" },
+  tsValue: { color: "#E2E8F0", fontSize: 12, fontWeight: "600" },
+  tsDelta: { color: "#6366F1", fontSize: 11, marginTop: 2 },
 });

@@ -1,5 +1,6 @@
 import React from "react";
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from "react-native";
+import { useTheme } from "../../contexts/ThemeContext";
 
 interface ButtonProps {
   title: string;
@@ -20,32 +21,29 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
 }) => {
+  const { colors: c } = useTheme();
   const isButtonDisabled = disabled || loading;
 
-  const getButtonStyles = () => {
+  const getBgColor = () => {
     switch (variant) {
-      case "secondary":
-        return styles.secondary;
-      case "danger":
-        return styles.danger;
-      case "outline":
-        return styles.outline;
-      case "primary":
-      default:
-        return styles.primary;
+      case "secondary": return c.surface2;
+      case "danger": return "#EF4444";
+      case "outline": return "transparent";
+      default: return c.primary;
     }
   };
 
-  const getTextStyles = () => {
+  const getBorderColor = () => {
+    if (variant === "outline") return c.primary;
+    if (variant === "secondary") return c.border;
+    return "transparent";
+  };
+
+  const getTextColor = () => {
     switch (variant) {
-      case "outline":
-        return styles.textOutline;
-      case "secondary":
-        return styles.textSecondary;
-      case "primary":
-      case "danger":
-      default:
-        return styles.textPrimary;
+      case "outline": return c.primary;
+      case "secondary": return c.text;
+      default: return "#ffffff";
     }
   };
 
@@ -54,15 +52,21 @@ export const Button: React.FC<ButtonProps> = ({
       onPress={onPress}
       activeOpacity={0.8}
       disabled={isButtonDisabled}
-      style={[styles.base, getButtonStyles(), isButtonDisabled && styles.disabled, style]}
+      style={[
+        styles.base,
+        {
+          backgroundColor: getBgColor(),
+          borderColor: getBorderColor(),
+          borderWidth: variant === "outline" || variant === "secondary" ? 1 : 0,
+          opacity: isButtonDisabled ? 0.5 : 1,
+        },
+        style,
+      ]}
     >
       {loading ? (
-        <ActivityIndicator
-          size="small"
-          color={variant === "outline" || variant === "secondary" ? "#6366F1" : "#FFFFFF"}
-        />
+        <ActivityIndicator size="small" color={variant === "outline" || variant === "secondary" ? c.primary : "#ffffff"} />
       ) : (
-        <Text style={[styles.textBase, getTextStyles(), textStyle]}>{title}</Text>
+        <Text style={[styles.textBase, { color: getTextColor() }, textStyle]}>{title}</Text>
       )}
     </TouchableOpacity>
   );
@@ -71,43 +75,15 @@ export const Button: React.FC<ButtonProps> = ({
 const styles = StyleSheet.create({
   base: {
     height: 48,
-    borderRadius: 8,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
     flexDirection: "row",
     paddingHorizontal: 16,
-    marginVertical: 8,
-  },
-  primary: {
-    backgroundColor: "#6366F1", // Indigo Accent
-  },
-  secondary: {
-    backgroundColor: "#1F2022",
-    borderWidth: 1,
-    borderColor: "#2E3033",
-  },
-  danger: {
-    backgroundColor: "#EF4444", // Crimson Red
-  },
-  outline: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "#6366F1",
-  },
-  disabled: {
-    opacity: 0.5,
+    marginVertical: 6,
   },
   textBase: {
     fontSize: 15,
     fontWeight: "600",
-  },
-  textPrimary: {
-    color: "#FFFFFF",
-  },
-  textSecondary: {
-    color: "#E2E8F0",
-  },
-  textOutline: {
-    color: "#6366F1",
   },
 });

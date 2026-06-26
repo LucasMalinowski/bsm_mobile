@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, RefreshControl, TextInput, Modal, Platform, KeyboardAvoidingView,
+  ActivityIndicator, Alert, RefreshControl, TextInput, Modal, Platform, KeyboardAvoidingView, Linking,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
@@ -20,6 +21,7 @@ import { CalibrationPoint } from "../../../../types/api";
 
 const schema = z.object({
   performed_at: z.string().min(1, "Data é obrigatória"),
+  cost: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -53,6 +55,7 @@ function draftFromPoint(p: CalibrationPoint): DraftPoint {
 export default function CalibrationScreen() {
   const { id: equipmentId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
@@ -92,6 +95,7 @@ export default function CalibrationScreen() {
       calibrationApi.addRecord(equipmentId, {
         performed_at: vals.performed_at,
         notes: vals.notes ?? null,
+        cost: vals.cost ? Number(vals.cost) : null,
         template_doc_id: selectedTemplateId,
       }),
     onSuccess: async (res) => {
@@ -187,7 +191,7 @@ export default function CalibrationScreen() {
 
   return (
     <View style={s.container}>
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: 12 + insets.top, minHeight: 64 + insets.top }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backAction}>
           <Ionicons name="arrow-back" size={24} color="#F8FAFC" />
         </TouchableOpacity>
@@ -244,6 +248,13 @@ export default function CalibrationScreen() {
               name="performed_at"
               render={({ field: { onChange, onBlur, value } }) => (
                 <Input label="Data de Realização *" placeholder="AAAA-MM-DD" onBlur={onBlur} onChangeText={onChange} value={value} error={errors.performed_at?.message} />
+              )}
+            />
+            <Controller
+              control={control}
+              name="cost"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input label="Custo da Calibração (R$)" placeholder="Ex: 350.00" onBlur={onBlur} onChangeText={onChange} value={value ?? ""} keyboardType="decimal-pad" />
               )}
             />
             <Controller
@@ -313,12 +324,27 @@ export default function CalibrationScreen() {
             <Card key={rec.id} style={s.recordCard}>
               <View style={s.recordTop}>
                 <Text style={s.recordDate}>{new Date(rec.performed_at).toLocaleDateString("pt-BR")}</Text>
-                {rec.certificate_storage_path && (
-                  <View style={s.certBadge}>
-                    <Ionicons name="document-attach-outline" size={12} color="#34D399" />
-                    <Text style={s.certBadgeText}>Certificado</Text>
-                  </View>
-                )}
+                <View style={s.recordTopRight}>
+                  {rec.cost != null && (
+                    <Text style={s.recordCost}>R$ {rec.cost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</Text>
+                  )}
+                  {rec.certificate_storage_path && (
+                    <TouchableOpacity
+                      style={s.certBadge}
+                      onPress={async () => {
+                        try {
+                          const url = await calibrationApi.getCertificateUrl(equipmentId, rec.id);
+                          await Linking.openURL(url);
+                        } catch (e: any) {
+                          Alert.alert("Erro", e.message || "Não foi possível abrir o certificado.");
+                        }
+                      }}
+                    >
+                      <Ionicons name="document-attach-outline" size={12} color="#34D399" />
+                      <Text style={s.certBadgeText}>Ver Certificado</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
 
               <View style={s.recordMeta}>
@@ -412,7 +438,7 @@ export default function CalibrationScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0F0F10" },
-  header: { height: 64, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033", paddingHorizontal: 16, paddingTop: 12 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033", paddingHorizontal: 16, paddingBottom: 12 },
   backAction: { padding: 4 },
   headerTitle: { color: "#F8FAFC", fontSize: 16, fontWeight: "700", flex: 1, marginLeft: 12 },
   addBtn: { padding: 8 },
@@ -447,6 +473,8 @@ const s = StyleSheet.create({
   recordCard: { backgroundColor: "#151618", marginBottom: 12 },
   recordTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
   recordDate: { color: "#E2E8F0", fontSize: 14, fontWeight: "600" },
+  recordTopRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  recordCost: { color: "#94A3B8", fontSize: 12, fontWeight: "600" },
   certBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#052E16", borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: "#16A34A" },
   certBadgeText: { color: "#34D399", fontSize: 11, fontWeight: "600" },
   recordMeta: { gap: 6, marginBottom: 8 },

@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { companyApi } from "../../api/company";
@@ -9,6 +10,7 @@ import { useAuth } from "../../auth/AuthProvider";
 
 export default function SelectCompanyScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { activeCompanyId, setActiveCompanyId } = useAuth();
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -25,7 +27,7 @@ export default function SelectCompanyScreen() {
 
   return (
     <View style={s.container}>
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: 12 + insets.top, minHeight: 64 + insets.top }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backAction}>
           <Ionicons name="arrow-back" size={24} color="#F8FAFC" />
         </TouchableOpacity>
@@ -51,6 +53,19 @@ export default function SelectCompanyScreen() {
           data={companies}
           keyExtractor={(c) => c.id}
           contentContainerStyle={s.list}
+          ListHeaderComponent={
+            <TouchableOpacity onPress={() => select(null)} activeOpacity={0.8}>
+              <Card style={{ ...s.companyCard, ...(activeCompanyId === null ? s.activeCard : {}) }}>
+                <View style={s.companyMeta}>
+                  <Text style={s.companyName}>Sem empresa selecionada</Text>
+                  <Text style={s.companySlug}>Visualização global (Super Admin)</Text>
+                </View>
+                {activeCompanyId === null && (
+                  <Ionicons name="checkmark-circle" size={20} color="#6366F1" />
+                )}
+              </Card>
+            </TouchableOpacity>
+          }
           renderItem={({ item }) => (
             <TouchableOpacity onPress={() => select(item.id)} activeOpacity={0.8}>
               <Card style={{ ...s.companyCard, ...(activeCompanyId === item.id ? s.activeCard : {}) }}>
@@ -78,7 +93,7 @@ export default function SelectCompanyScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0F0F10" },
-  header: { height: 64, flexDirection: "row", alignItems: "center", backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033", paddingHorizontal: 16, paddingTop: 12 },
+  header: { flexDirection: "row", alignItems: "center", backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033", paddingHorizontal: 16, paddingBottom: 12 },
   backAction: { padding: 4 },
   headerTitle: { color: "#F8FAFC", fontSize: 16, fontWeight: "700", marginLeft: 12 },
   helperText: { color: "#64748B", fontSize: 12, padding: 16, lineHeight: 18 },

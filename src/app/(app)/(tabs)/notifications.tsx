@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl,
@@ -11,6 +11,7 @@ import { Card } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
 import { notificationsApi } from "../../../api/notifications";
 import { Notification, NotificationType } from "../../../types/api";
+import { useTheme } from "../../../contexts/ThemeContext";
 
 function resolveDeepLink(type: NotificationType, metadata: Record<string, unknown> | null): string | null {
   if (!metadata) return null;
@@ -41,7 +42,9 @@ const TYPE_ICONS: Record<string, { icon: string; color: string }> = {
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const { colors: c } = useTheme();
   const queryClient = useQueryClient();
+  const s = useMemo(() => makeStyles(c), [c]);
   const [showAll, setShowAll] = useState(false);
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
@@ -52,7 +55,6 @@ export default function NotificationsScreen() {
   const markReadMutation = useMutation({
     mutationFn: (id: string) => notificationsApi.markRead(id),
     onMutate: async (id) => {
-      // Optimistic update
       await queryClient.cancelQueries({ queryKey: ["notifications"] });
       queryClient.setQueryData<{ data: Notification[] }>(
         ["notifications", showAll ? "all" : "unread"],
@@ -77,7 +79,6 @@ export default function NotificationsScreen() {
     <View style={s.container}>
       <CustomHeader />
 
-      {/* Filter Toggle */}
       <View style={s.filterBar}>
         <View style={s.filterToggle}>
           <TouchableOpacity
@@ -106,7 +107,7 @@ export default function NotificationsScreen() {
       </View>
 
       {isLoading ? (
-        <View style={s.center}><ActivityIndicator size="large" color="#6366F1" /></View>
+        <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>
       ) : isError ? (
         <View style={s.center}>
           <Ionicons name="cloud-offline-outline" size={48} color="#EF4444" />
@@ -115,7 +116,7 @@ export default function NotificationsScreen() {
         </View>
       ) : notifications.length === 0 ? (
         <View style={s.center}>
-          <Ionicons name="notifications-off-outline" size={56} color="#475569" />
+          <Ionicons name="notifications-off-outline" size={56} color={c.textMuted} />
           <Text style={s.emptyTitle}>Tudo em dia!</Text>
           <Text style={s.emptySubtitle}>
             {showAll ? "Nenhuma notificação registrada." : "Nenhuma notificação não lida no momento."}
@@ -130,7 +131,7 @@ export default function NotificationsScreen() {
           onRefresh={refetch}
           renderItem={({ item }) => {
             const isUnread = !item.read_at;
-            const iconCfg = TYPE_ICONS[item.type] ?? { icon: "notifications-outline", color: "#94A3B8" };
+            const iconCfg = TYPE_ICONS[item.type] ?? { icon: "notifications-outline", color: c.textSub };
             const deepLink = resolveDeepLink(item.type, item.metadata);
             return (
               <TouchableOpacity
@@ -140,7 +141,7 @@ export default function NotificationsScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <Card style={[s.notifCard, isUnread && s.notifCardUnread]}>
+                <Card style={[s.notifCard, isUnread ? s.notifCardUnread : undefined]}>
                   <View style={[s.iconBox, { backgroundColor: `${iconCfg.color}20` }]}>
                     <Ionicons name={iconCfg.icon as any} size={22} color={iconCfg.color} />
                   </View>
@@ -153,7 +154,7 @@ export default function NotificationsScreen() {
                     <Text style={s.notifDate}>{new Date(item.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</Text>
                   </View>
                   {deepLink && (
-                    <Ionicons name="chevron-forward" size={16} color="#475569" style={{ alignSelf: "center", marginLeft: 4 }} />
+                    <Ionicons name="chevron-forward" size={16} color={c.textMuted} style={{ alignSelf: "center", marginLeft: 4 }} />
                   )}
                 </Card>
               </TouchableOpacity>
@@ -165,29 +166,31 @@ export default function NotificationsScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F0F10" },
-  filterBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033" },
-  filterToggle: { flexDirection: "row", backgroundColor: "#1C1D20", borderRadius: 8, padding: 2 },
-  toggleBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 6 },
-  toggleBtnActive: { backgroundColor: "#6366F1" },
-  toggleText: { fontSize: 13, color: "#94A3B8", fontWeight: "500" },
-  toggleTextActive: { color: "#FFFFFF", fontWeight: "600" },
-  markAllBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, backgroundColor: "#1C1D20", borderWidth: 1, borderColor: "#2E3033" },
-  markAllText: { color: "#6366F1", fontSize: 12, fontWeight: "600" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
-  errorText: { color: "#EF4444", fontSize: 14, marginTop: 12, textAlign: "center" },
-  emptyTitle: { color: "#E2E8F0", fontSize: 18, fontWeight: "700", marginTop: 16 },
-  emptySubtitle: { color: "#475569", fontSize: 13, marginTop: 8, textAlign: "center" },
-  list: { padding: 16, paddingBottom: 32 },
-  notifCard: { flexDirection: "row", alignItems: "flex-start", backgroundColor: "#151618", marginBottom: 10, padding: 14 },
-  notifCardUnread: { borderLeftWidth: 3, borderLeftColor: "#6366F1", backgroundColor: "#17182A" },
-  iconBox: { width: 44, height: 44, borderRadius: 10, justifyContent: "center", alignItems: "center", marginRight: 14 },
-  notifBody: { flex: 1 },
-  notifTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
-  notifTitle: { fontSize: 14, fontWeight: "600", color: "#94A3B8", flex: 1, marginRight: 8 },
-  notifTitleUnread: { color: "#F8FAFC" },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#6366F1" },
-  notifText: { fontSize: 13, color: "#64748B", lineHeight: 18, marginBottom: 6 },
-  notifDate: { fontSize: 11, color: "#475569" },
-});
+function makeStyles(c: any) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    filterBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.border },
+    filterToggle: { flexDirection: "row", backgroundColor: c.surface2, borderRadius: 8, padding: 2 },
+    toggleBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 6 },
+    toggleBtnActive: { backgroundColor: c.primary },
+    toggleText: { fontSize: 13, color: c.textSub, fontWeight: "500" },
+    toggleTextActive: { color: "#FFFFFF", fontWeight: "600" },
+    markAllBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, backgroundColor: c.primaryLight, borderWidth: 1, borderColor: c.primaryBorder },
+    markAllText: { color: c.primary, fontSize: 12, fontWeight: "600" },
+    center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
+    errorText: { color: "#EF4444", fontSize: 14, marginTop: 12, textAlign: "center" },
+    emptyTitle: { color: c.text, fontSize: 18, fontWeight: "700", marginTop: 16 },
+    emptySubtitle: { color: c.textMuted, fontSize: 13, marginTop: 8, textAlign: "center" },
+    list: { padding: 16, paddingBottom: 32 },
+    notifCard: { flexDirection: "row", alignItems: "flex-start", marginBottom: 10, padding: 14 },
+    notifCardUnread: { borderLeftWidth: 3, borderLeftColor: c.primary, backgroundColor: c.primaryLight },
+    iconBox: { width: 44, height: 44, borderRadius: 10, justifyContent: "center", alignItems: "center", marginRight: 14 },
+    notifBody: { flex: 1 },
+    notifTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
+    notifTitle: { fontSize: 14, fontWeight: "600", color: c.textSub, flex: 1, marginRight: 8 },
+    notifTitleUnread: { color: c.text },
+    unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.primary },
+    notifText: { fontSize: 13, color: c.textSub, lineHeight: 18, marginBottom: 6 },
+    notifDate: { fontSize: 11, color: c.textMuted },
+  });
+}

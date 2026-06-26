@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Alert, Linking, RefreshControl, Switch,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as FileSystem from "expo-file-system";
@@ -24,6 +25,7 @@ function formatBytes(bytes: number) {
 export default function DocumentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [uploadingVersion, setUploadingVersion] = useState(false);
@@ -125,7 +127,7 @@ export default function DocumentDetailScreen() {
 
   return (
     <View style={s.container}>
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: 12 + insets.top, minHeight: 64 + insets.top }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backAction}>
           <Ionicons name="arrow-back" size={24} color="#F8FAFC" />
         </TouchableOpacity>
@@ -182,7 +184,7 @@ export default function DocumentDetailScreen() {
           <Text style={s.downloadBtnText}>Baixar / Abrir Documento</Text>
         </TouchableOpacity>
 
-        {can(user, "document:upload") && (
+        {user?.role === "super_admin" && (
           <Button
             title={uploadingVersion ? "Enviando..." : "Nova Versão"}
             variant="outline"
@@ -192,7 +194,7 @@ export default function DocumentDetailScreen() {
           />
         )}
 
-        {can(user, "document:delete") && (
+        {user?.role === "super_admin" && (
           <Button
             title="Excluir Documento"
             variant="danger"
@@ -241,7 +243,7 @@ const s = StyleSheet.create({
   errorText: { color: "#EF4444", fontSize: 15, marginTop: 12, textAlign: "center", marginBottom: 16 },
   retryBtn: { backgroundColor: "#6366F1", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
   retryBtnText: { color: "#FFFFFF", fontWeight: "600" },
-  header: { height: 64, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033", paddingHorizontal: 16, paddingTop: 12 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033", paddingHorizontal: 16, paddingBottom: 12 },
   backAction: { padding: 4 },
   headerTitle: { color: "#F8FAFC", fontSize: 16, fontWeight: "700", maxWidth: "80%" },
   scroll: { padding: 16, paddingBottom: 40 },

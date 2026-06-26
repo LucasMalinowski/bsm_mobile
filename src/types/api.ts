@@ -101,6 +101,7 @@ export interface Equipment {
   status: EquipmentStatus;
   location: string | null;
   acquisition_date: string | null;
+  acquisition_cost: number | null;
   last_calibration: string | null;
   next_calibration: string | null;
   notes: string | null;
@@ -134,6 +135,7 @@ export interface CreateEquipmentDTO {
   status?: EquipmentStatus;
   location?: string | null;
   acquisition_date?: string | null;
+  acquisition_cost?: number | null;
   last_calibration?: string | null;
   next_calibration?: string | null;
   notes?: string | null;
@@ -168,6 +170,9 @@ export interface Ticket {
   created_by: string;
   assigned_to: string | null;
   resolved_at: string | null;
+  picked_up_at: string | null;
+  returned_at: string | null;
+  closed_at: string | null;
   created_at: string;
   updated_at: string;
   equipment?: { id: string; name: string; internal_code: string };
@@ -339,9 +344,31 @@ export interface CalibrationRecord {
   certificate_storage_path: string | null;
   performed_at: string;
   notes: string | null;
+  cost: number | null;
   created_at: string;
   performer?: { name: string };
   template_doc?: { name: string } | null;
+}
+
+export interface MaintenanceRecord {
+  id: string;
+  equipment_id: string;
+  company_id: string;
+  performed_by: string | null;
+  performed_at: string;
+  description: string;
+  cost: number | null;
+  notes: string | null;
+  created_at: string;
+  performer?: { name: string } | null;
+}
+
+export interface CreateMaintenanceRecordDTO {
+  performed_at: string;
+  description: string;
+  cost?: number | null;
+  notes?: string | null;
+  performed_by?: string | null;
 }
 
 export interface CreateCalibrationDocumentDTO {
@@ -360,6 +387,7 @@ export interface CreateCalibrationRecordDTO {
   template_doc_id?: string | null;
   performed_at?: string;
   notes?: string | null;
+  cost?: number | null;
 }
 
 export interface Pagination {

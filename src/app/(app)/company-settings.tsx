@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,6 +23,7 @@ type FormValues = z.infer<typeof schema>;
 
 export default function CompanySettingsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -51,7 +53,7 @@ export default function CompanySettingsScreen() {
   if (!companyId) {
     return (
       <View style={s.container}>
-        <View style={s.header}>
+        <View style={[s.header, { paddingTop: 12 + insets.top, minHeight: 64 + insets.top }]}>
           <TouchableOpacity onPress={() => router.back()} style={s.backAction}>
             <Ionicons name="arrow-back" size={24} color="#F8FAFC" />
           </TouchableOpacity>
@@ -145,7 +147,7 @@ export default function CompanySettingsScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0F0F10" },
-  header: { height: 64, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033", paddingHorizontal: 16, paddingTop: 12 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033", paddingHorizontal: 16, paddingBottom: 12 },
   backAction: { padding: 4 },
   headerTitle: { color: "#F8FAFC", fontSize: 16, fontWeight: "700" },
   scroll: { padding: 16, paddingBottom: 40 },

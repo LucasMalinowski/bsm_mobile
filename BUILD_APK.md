@@ -36,8 +36,10 @@ This produces a signed, installable APK locally via Gradle — no EAS Build minu
 
 ```bash
 cd android
-./gradlew assembleRelease
+EXPO_PUBLIC_API_BASE_URL=https://bsm-system.vercel.app ./gradlew assembleRelease
 ```
+
+> **Why the prefix?** Gradle invokes the Expo bundler in a subprocess where `.env` file loading is unreliable — the variable must be passed explicitly in the shell environment. Without it, `EXPO_PUBLIC_API_BASE_URL` is undefined at bundle time and the app silently falls back to `http://localhost:3000`, causing "Erro de conexão com o servidor" on real devices.
 
 Output:
 - `android/app/build/outputs/apk/release/app-arm64-v8a-release.apk` — **send this one** to the client's phone.
@@ -55,4 +57,5 @@ The client's phone needs **"Install from unknown sources"** allowed for whatever
 - Same Wi-Fi/LAN as your dev machine: your machine's LAN IP (e.g. `http://192.168.100.101:3000`) — only works while both devices are on that exact network.
 - A real deployed backend (Vercel): the production URL (e.g. `https://your-app.vercel.app`) — works from anywhere, this is what you want if the client will use the APK outside your office.
 
-After changing `.env`, you must rebuild (`./gradlew assembleRelease` again) for the change to take effect.
+After changing `.env`, you must rebuild (with the `EXPO_PUBLIC_API_BASE_URL=...` prefix as shown above) for the change to take effect.
+

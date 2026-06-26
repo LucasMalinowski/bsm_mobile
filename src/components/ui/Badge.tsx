@@ -14,48 +14,48 @@ export const Badge: React.FC<BadgeProps> = ({ type, style }) => {
     switch (type) {
       // Equipment statuses
       case "active":
-        return { bg: "#062F29", border: "#0D9488", text: "#14B8A6", label: "Ativo" };
+        return { bg: "#dcfce7", border: "#86efac", text: "#166534", label: "Ativo" };
       case "inactive":
-        return { bg: "#27272A", border: "#52525B", text: "#A1A1AA", label: "Inativo" };
+        return { bg: "#f3f4f6", border: "#d1d5db", text: "#374151", label: "Inativo" };
       case "under_maintenance":
-        return { bg: "#3C1F03", border: "#D97706", text: "#F59E0B", label: "Em Manutenção" };
+        return { bg: "#fef9c3", border: "#fde047", text: "#854d0e", label: "Em Manutenção" };
       case "calibration":
-        return { bg: "#0A2540", border: "#007BFF", text: "#3B82F6", label: "Calibração" };
+        return { bg: "#dbeafe", border: "#93c5fd", text: "#1e40af", label: "Calibração" };
       case "retired":
-        return { bg: "#1C1917", border: "#44403C", text: "#78716C", label: "Aposentado" };
+        return { bg: "#fee2e2", border: "#fca5a5", text: "#b91c1c", label: "Aposentado" };
 
       // Ticket statuses
       case "open":
-        return { bg: "#3B0712", border: "#9F1239", text: "#FDA4AF", label: "Aberto" };
+        return { bg: "#dbeafe", border: "#93c5fd", text: "#1e40af", label: "Aberto" };
       case "in_progress":
-        return { bg: "#0F172A", border: "#2563EB", text: "#60A5FA", label: "Em Progresso" };
+        return { bg: "#fef9c3", border: "#fde047", text: "#854d0e", label: "Em Progresso" };
       case "waiting":
-        return { bg: "#2D1A05", border: "#B45309", text: "#FBBF24", label: "Pendente" };
+        return { bg: "#f3f4f6", border: "#d1d5db", text: "#374151", label: "Pendente" };
       case "resolved":
-        return { bg: "#022C22", border: "#047857", text: "#34D399", label: "Resolvido" };
+        return { bg: "#dcfce7", border: "#86efac", text: "#166534", label: "Resolvido" };
       case "closed":
-        return { bg: "#18181B", border: "#27272A", text: "#9FA6B2", label: "Fechado" };
+        return { bg: "#f3f4f6", border: "#d1d5db", text: "#6b7280", label: "Fechado" };
 
       // Ticket priorities
       case "low":
-        return { bg: "#0F172A", border: "#334155", text: "#94A3B8", label: "Baixa" };
+        return { bg: "#f3f4f6", border: "#d1d5db", text: "#6b7280", label: "Baixa" };
       case "medium":
-        return { bg: "#3B2A0A", border: "#D97706", text: "#FBBF24", label: "Média" };
+        return { bg: "#dbeafe", border: "#93c5fd", text: "#1e40af", label: "Média" };
       case "high":
-        return { bg: "#4C1D1D", border: "#B91C1C", text: "#FCA5A5", label: "Alta" };
+        return { bg: "#fef9c3", border: "#fde047", text: "#854d0e", label: "Alta" };
       case "critical":
-        return { bg: "#4A0404", border: "#DC2626", text: "#FCA5A5", label: "Crítica" };
+        return { bg: "#fee2e2", border: "#fca5a5", text: "#b91c1c", label: "Crítica" };
 
       // Roles
       case "employee":
-        return { bg: "#0F172A", border: "#6366F1", text: "#818CF8", label: "Funcionário" };
+        return { bg: "#e0f0fb", border: "#7dd3fc", text: "#0363a9", label: "Funcionário" };
       case "admin":
-        return { bg: "#3C150A", border: "#EA580C", text: "#FB923C", label: "Admin" };
+        return { bg: "#fff7ed", border: "#fdba74", text: "#c2410c", label: "Admin" };
       case "super_admin":
-        return { bg: "#311042", border: "#9333EA", text: "#D8B4FE", label: "Super Admin" };
+        return { bg: "#f5f3ff", border: "#c4b5fd", text: "#7c3aed", label: "Super Admin" };
 
       default:
-        return { bg: "#1F2022", border: "#2E3033", text: "#F8FAFC", label: String(type).toUpperCase() };
+        return { bg: "#f3f4f6", border: "#d1d5db", text: "#374151", label: String(type).toUpperCase() };
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, TextInput, ScrollView,
@@ -10,6 +10,7 @@ import { CustomHeader } from "../../../components/ui/CustomHeader";
 import { Card } from "../../../components/ui/Card";
 import { documentsApi } from "../../../api/documents";
 import { useAuth } from "../../../auth/AuthProvider";
+import { useTheme } from "../../../contexts/ThemeContext";
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -39,6 +40,8 @@ type DocSort = (typeof DOC_SORTS)[number];
 export default function DocumentsListScreen() {
   const router = useRouter();
   const { user, activeCompanyId } = useAuth();
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const [search, setSearch] = useState("");
   const [selectedSort, setSelectedSort] = useState<DocSort>(DOC_SORTS[0]);
   const companyId = user?.role === "super_admin" ? activeCompanyId ?? undefined : undefined;
@@ -56,22 +59,22 @@ export default function DocumentsListScreen() {
 
       <View style={s.searchSection}>
         <View style={s.searchBox}>
-          <Ionicons name="search" size={16} color="#64748B" style={{ marginRight: 8 }} />
+          <Ionicons name="search" size={16} color={c.textMuted} style={{ marginRight: 8 }} />
           <TextInput
             placeholder="Buscar documentos..."
-            placeholderTextColor="#64748B"
+            placeholderTextColor={c.textMuted}
             value={search}
             onChangeText={setSearch}
             style={s.searchInput}
           />
           {search ? (
             <TouchableOpacity onPress={() => setSearch("")}>
-              <Ionicons name="close-circle" size={16} color="#64748B" />
+              <Ionicons name="close-circle" size={16} color={c.textMuted} />
             </TouchableOpacity>
           ) : null}
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.sortRow}>
-          <Ionicons name="swap-vertical-outline" size={13} color="#64748B" style={{ marginRight: 4, alignSelf: "center" }} />
+          <Ionicons name="swap-vertical-outline" size={13} color={c.textMuted} style={{ marginRight: 4, alignSelf: "center" }} />
           {DOC_SORTS.map((opt) => {
             const active = selectedSort.sort === opt.sort && selectedSort.order === opt.order;
             return (
@@ -88,7 +91,7 @@ export default function DocumentsListScreen() {
       </View>
 
       {isLoading ? (
-        <View style={s.center}><ActivityIndicator size="large" color="#6366F1" /></View>
+        <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>
       ) : isError ? (
         <View style={s.center}>
           <Ionicons name="cloud-offline-outline" size={48} color="#EF4444" />
@@ -99,7 +102,7 @@ export default function DocumentsListScreen() {
         </View>
       ) : docs.length === 0 ? (
         <View style={s.center}>
-          <Ionicons name="document-text-outline" size={48} color="#475569" />
+          <Ionicons name="document-text-outline" size={48} color={c.textMuted} />
           <Text style={s.emptyText}>Nenhum documento encontrado.</Text>
         </View>
       ) : (
@@ -115,7 +118,7 @@ export default function DocumentsListScreen() {
               <TouchableOpacity onPress={() => router.push(`/(app)/documents/${item.id}`)}>
                 <Card style={s.docCard}>
                   <View style={s.docIcon}>
-                    <Ionicons name={iconName as any} size={24} color="#6366F1" />
+                    <Ionicons name={iconName as any} size={24} color={c.primary} />
                   </View>
                   <View style={s.docMeta}>
                     <Text style={s.docName} numberOfLines={2}>{item.name}</Text>
@@ -127,13 +130,13 @@ export default function DocumentsListScreen() {
                       <Text style={s.docVersion}>v{item.version}</Text>
                       {item.equipment && (
                         <View style={s.equipTag}>
-                          <Ionicons name="cube-outline" size={10} color="#818CF8" />
+                          <Ionicons name="cube-outline" size={10} color={c.primary} />
                           <Text style={s.equipText}>{item.equipment.name}</Text>
                         </View>
                       )}
                     </View>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color="#475569" />
+                  <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
                 </Card>
               </TouchableOpacity>
             );
@@ -144,30 +147,32 @@ export default function DocumentsListScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F0F10" },
-  searchSection: { padding: 12, paddingBottom: 10, backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033" },
-  searchBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#151618", borderRadius: 8, borderWidth: 1, borderColor: "#2E3033", height: 40, paddingHorizontal: 12, marginBottom: 8 },
-  searchInput: { flex: 1, color: "#F8FAFC", fontSize: 14 },
-  sortRow: { gap: 6, alignItems: "center" },
-  sortChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, backgroundColor: "#1C1D20", marginRight: 6 },
-  sortChipActive: { backgroundColor: "#1A1A2E", borderWidth: 1, borderColor: "#312E81" },
-  sortChipText: { fontSize: 11, color: "#64748B", fontWeight: "500" },
-  sortChipTextActive: { color: "#818CF8", fontWeight: "700" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
-  errorText: { color: "#EF4444", fontSize: 14, marginTop: 12, textAlign: "center" },
-  emptyText: { color: "#475569", fontSize: 14, marginTop: 12 },
-  retryBtn: { marginTop: 16, backgroundColor: "#1C1D20", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: "#2E3033" },
-  retryText: { color: "#6366F1", fontWeight: "600" },
-  list: { padding: 16, paddingBottom: 32 },
-  docCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#151618", marginBottom: 10, padding: 14 },
-  docIcon: { width: 44, height: 44, backgroundColor: "#1A1A2E", borderRadius: 10, justifyContent: "center", alignItems: "center", marginRight: 14 },
-  docMeta: { flex: 1, marginRight: 8 },
-  docName: { fontSize: 14, fontWeight: "600", color: "#F8FAFC", marginBottom: 2 },
-  docDesc: { fontSize: 12, color: "#64748B", marginBottom: 4 },
-  docFooter: { flexDirection: "row", gap: 10, alignItems: "center" },
-  docSize: { fontSize: 11, color: "#475569" },
-  docVersion: { fontSize: 11, color: "#475569", backgroundColor: "#1C1D20", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  equipTag: { flexDirection: "row", alignItems: "center", gap: 4 },
-  equipText: { fontSize: 11, color: "#818CF8" },
-});
+function makeStyles(c: any) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    searchSection: { padding: 12, paddingBottom: 10, backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.border },
+    searchBox: { flexDirection: "row", alignItems: "center", backgroundColor: c.searchBg, borderRadius: 10, borderWidth: 1, borderColor: c.searchBorder, height: 40, paddingHorizontal: 12, marginBottom: 8 },
+    searchInput: { flex: 1, color: c.text, fontSize: 14 },
+    sortRow: { gap: 6, alignItems: "center" },
+    sortChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 9999, backgroundColor: c.filterChip, marginRight: 6 },
+    sortChipActive: { backgroundColor: c.primaryLight, borderWidth: 1, borderColor: c.primaryBorder },
+    sortChipText: { fontSize: 11, color: c.filterChipText, fontWeight: "500" },
+    sortChipTextActive: { color: c.primary, fontWeight: "700" },
+    center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
+    errorText: { color: "#EF4444", fontSize: 14, marginTop: 12, textAlign: "center" },
+    emptyText: { color: c.textMuted, fontSize: 14, marginTop: 12 },
+    retryBtn: { marginTop: 16, backgroundColor: c.primaryLight, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+    retryText: { color: c.primary, fontWeight: "600" },
+    list: { padding: 16, paddingBottom: 32 },
+    docCard: { flexDirection: "row", alignItems: "center", marginBottom: 10, padding: 14 },
+    docIcon: { width: 44, height: 44, backgroundColor: c.primaryLight, borderRadius: 10, justifyContent: "center", alignItems: "center", marginRight: 14 },
+    docMeta: { flex: 1, marginRight: 8 },
+    docName: { fontSize: 14, fontWeight: "600", color: c.text, marginBottom: 2 },
+    docDesc: { fontSize: 12, color: c.textSub, marginBottom: 4 },
+    docFooter: { flexDirection: "row", gap: 10, alignItems: "center" },
+    docSize: { fontSize: 11, color: c.textMuted },
+    docVersion: { fontSize: 11, color: c.textSub, backgroundColor: c.surface2, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+    equipTag: { flexDirection: "row", alignItems: "center", gap: 4 },
+    equipText: { fontSize: 11, color: c.primary },
+  });
+}

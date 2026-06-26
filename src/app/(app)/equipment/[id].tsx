@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Alert, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Alert, RefreshControl, Modal, TextInput } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../../auth/AuthProvider";
 import { can } from "../../../auth/permissions";
 import { Card } from "../../../components/ui/Card";
@@ -10,15 +11,22 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { equipmentApi } from "../../../api/equipment";
 import { calibrationApi } from "../../../api/calibration";
+import { maintenanceApi } from "../../../api/maintenances";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function EquipmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"info" | "calibration" | "history">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "calibration" | "history" | "maintenance">("info");
+  const [maintModalVisible, setMaintModalVisible] = useState(false);
+  const [maintDate, setMaintDate] = useState("");
+  const [maintDesc, setMaintDesc] = useState("");
+  const [maintCost, setMaintCost] = useState("");
+  const [maintNotes, setMaintNotes] = useState("");
 
   // Fetch Equipment
   const { data: eqData, isLoading, isError, refetch } = useQuery({
@@ -37,6 +45,27 @@ export default function EquipmentDetailScreen() {
     queryKey: ["calibration-records", id],
     queryFn: () => calibrationApi.getRecords(id),
     enabled: !!id,
+  });
+
+  const { data: maintData } = useQuery({
+    queryKey: ["maintenances", id],
+    queryFn: () => maintenanceApi.list(id),
+    enabled: !!id,
+  });
+
+  const addMaintMutation = useMutation({
+    mutationFn: (data: { performed_at: string; description: string; cost: number | null; notes: string | null }) =>
+      maintenanceApi.create(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["maintenances", id] });
+      setMaintModalVisible(false);
+      setMaintDate("");
+      setMaintDesc("");
+      setMaintCost("");
+      setMaintNotes("");
+      Alert.alert("Sucesso", "Manutenção registrada com sucesso!");
+    },
+    onError: (err: any) => Alert.alert("Erro", err.message || "Não foi possível registrar a manutenção."),
   });
 
   // Delete Mutation
@@ -96,11 +125,12 @@ export default function EquipmentDetailScreen() {
   const history = eq.history ?? [];
   const points = pointsData?.data ?? [];
   const records = recordsData?.data ?? [];
+  const maintenances = maintData?.data ?? [];
 
   return (
     <View style={styles.container}>
       {/* Header Bar */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: 12 + insets.top, minHeight: 64 + insets.top }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backAction}>
           <Ionicons name="arrow-back" size={24} color="#F8FAFC" />
         </TouchableOpacity>
@@ -156,6 +186,14 @@ export default function EquipmentDetailScreen() {
               Histórico
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveTab("maintenance")}
+            style={[styles.tab, activeTab === "maintenance" ? styles.tabActive : null]}
+          >
+            <Text style={[styles.tabLabel, activeTab === "maintenance" ? styles.tabLabelActive : null]}>
+              Manutenção
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Tab Contents */}
@@ -193,6 +231,15 @@ export default function EquipmentDetailScreen() {
                 <Text style={styles.infoLabel}>Data de Aquisição</Text>
                 <Text style={styles.infoValue}>{formatDateStr(eq.acquisition_date)}</Text>
               </View>
+
+              {eq.acquisition_cost != null ? (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Custo de Aquisição</Text>
+                  <Text style={styles.infoValue}>
+                    R$ {eq.acquisition_cost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </Text>
+                </View>
+              ) : null}
             </Card>
 
             {eq.notes ? (
@@ -208,7 +255,7 @@ export default function EquipmentDetailScreen() {
                 <Button
                   title="Editar Equipamento"
                   variant="outline"
-                  onPress={() => router.push(`/(app)/equipment/${id}_edit`)}
+                  onPress={() => router.push({ pathname: "/(app)/equipment/[id]_edit" as any, params: { id } })}
                   style={styles.actionBtn}
                 />
               )}
@@ -281,10 +328,10 @@ export default function EquipmentDetailScreen() {
                 <Text style={styles.sectionTitle}>Histórico de Registros ({records.length})</Text>
                 {can(user, "calibration:register") && (
                   <TouchableOpacity
-                    onPress={() => router.push({ pathname: `/(app)/tickets/new`, params: { equipment_id: id } })}
+                    onPress={() => router.push({ pathname: "/(app)/equipment/calibration/[id]" as any, params: { id } })}
                     style={styles.registerBtn}
                   >
-                    <Text style={styles.registerBtnText}>Solicitar</Text>
+                    <Text style={styles.registerBtnText}>Registrar</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -330,7 +377,123 @@ export default function EquipmentDetailScreen() {
             )}
           </Card>
         )}
+
+        {activeTab === "maintenance" && (
+          <View>
+            <Card style={styles.sectionCard}>
+              <View style={styles.recordsHeader}>
+                <Text style={styles.sectionTitle}>Manutenções ({maintenances.length})</Text>
+                {can(user, "calibration:register") && (
+                  <TouchableOpacity onPress={() => setMaintModalVisible(true)} style={styles.registerBtn}>
+                    <Text style={styles.registerBtnText}>Registrar</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {maintenances.length === 0 ? (
+                <Text style={styles.emptyCardText}>Nenhuma manutenção registrada.</Text>
+              ) : (
+                maintenances.map((m) => (
+                  <View key={m.id} style={styles.maintRow}>
+                    <View style={styles.recordMeta}>
+                      <Text style={styles.recordPerformer}>{m.description}</Text>
+                      <Text style={styles.recordDate}>{formatDateStr(m.performed_at)}</Text>
+                    </View>
+                    {m.performer?.name ? (
+                      <Text style={styles.maintPerformer}>Por: {m.performer.name}</Text>
+                    ) : null}
+                    {m.cost != null ? (
+                      <Text style={styles.maintCost}>
+                        Custo: R$ {m.cost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </Text>
+                    ) : null}
+                    {m.notes ? <Text style={styles.recordNotes}>{m.notes}</Text> : null}
+                  </View>
+                ))
+              )}
+            </Card>
+          </View>
+        )}
       </ScrollView>
+
+      <Modal
+        visible={maintModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setMaintModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Registrar Manutenção</Text>
+
+            <Text style={styles.modalLabel}>Data de Realização *</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="AAAA-MM-DD"
+              placeholderTextColor="#475569"
+              value={maintDate}
+              onChangeText={setMaintDate}
+            />
+
+            <Text style={styles.modalLabel}>Descrição *</Text>
+            <TextInput
+              style={[styles.modalInput, styles.modalTextArea]}
+              placeholder="Descreva a manutenção realizada"
+              placeholderTextColor="#475569"
+              value={maintDesc}
+              onChangeText={setMaintDesc}
+              multiline
+              numberOfLines={3}
+            />
+
+            <Text style={styles.modalLabel}>Custo (R$)</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Ex: 500.00"
+              placeholderTextColor="#475569"
+              value={maintCost}
+              onChangeText={setMaintCost}
+              keyboardType="decimal-pad"
+            />
+
+            <Text style={styles.modalLabel}>Observações</Text>
+            <TextInput
+              style={[styles.modalInput, styles.modalTextArea]}
+              placeholder="Observações adicionais"
+              placeholderTextColor="#475569"
+              value={maintNotes}
+              onChangeText={setMaintNotes}
+              multiline
+              numberOfLines={2}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setMaintModalVisible(false)}>
+                <Text style={styles.modalCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSaveBtn, addMaintMutation.isPending ? styles.modalSaveBtnDisabled : null]}
+                onPress={() => {
+                  if (!maintDate.trim() || !maintDesc.trim()) {
+                    Alert.alert("Campos obrigatórios", "Preencha a data e a descrição.");
+                    return;
+                  }
+                  addMaintMutation.mutate({
+                    performed_at: maintDate.trim(),
+                    description: maintDesc.trim(),
+                    cost: maintCost ? Number(maintCost) : null,
+                    notes: maintNotes.trim() || null,
+                  });
+                }}
+                disabled={addMaintMutation.isPending}
+              >
+                <Text style={styles.modalSaveText}>
+                  {addMaintMutation.isPending ? "Salvando..." : "Salvar"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -365,7 +528,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   header: {
-    height: 64,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -373,7 +535,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#2E3033",
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingBottom: 12,
   },
   backAction: {
     padding: 4,
@@ -608,5 +770,90 @@ const styles = StyleSheet.create({
     color: "#475569",
     fontSize: 11,
     marginTop: 4,
+  },
+  maintRow: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#212225",
+  },
+  maintPerformer: {
+    color: "#94A3B8",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  maintCost: {
+    color: "#34D399",
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    justifyContent: "flex-end",
+  },
+  modalBox: {
+    backgroundColor: "#151618",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#F8FAFC",
+    marginBottom: 20,
+  },
+  modalLabel: {
+    fontSize: 12,
+    color: "#94A3B8",
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  modalInput: {
+    backgroundColor: "#0F0F10",
+    borderWidth: 1,
+    borderColor: "#2E3033",
+    borderRadius: 8,
+    color: "#F8FAFC",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  modalTextArea: {
+    height: 80,
+    textAlignVertical: "top",
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 20,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#2E3033",
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  modalCancelText: {
+    color: "#94A3B8",
+    fontWeight: "600",
+  },
+  modalSaveBtn: {
+    flex: 1,
+    backgroundColor: "#6366F1",
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  modalSaveBtnDisabled: {
+    opacity: 0.6,
+  },
+  modalSaveText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
   },
 });
