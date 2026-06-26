@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Alert, RefreshControl, Modal, TextInput } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,12 +14,34 @@ import { calibrationApi } from "../../../api/calibration";
 import { maintenanceApi } from "../../../api/maintenances";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useTheme } from "../../../contexts/ThemeContext";
+import type { Colors } from "../../../constants/colors";
+
+const ACTION_LABELS: Record<string, string> = {
+  created: "Criado",
+  updated: "Atualizado",
+  deleted: "Excluído",
+  status_changed: "Status alterado",
+  calibration_registered: "Calibração registrada",
+  calibration_updated: "Calibração atualizada",
+  maintenance_added: "Manutenção registrada",
+  maintenance_updated: "Manutenção atualizada",
+  document_uploaded: "Documento enviado",
+  document_updated: "Documento atualizado",
+  document_deleted: "Documento excluído",
+};
+
+function translateAction(action: string): string {
+  return ACTION_LABELS[action] ?? action;
+}
 
 export default function EquipmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"info" | "calibration" | "history" | "maintenance">("info");
   const [maintModalVisible, setMaintModalVisible] = useState(false);
@@ -103,19 +125,22 @@ export default function EquipmentDetailScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#6366F1" />
+      <View style={s.centerContainer}>
+        <ActivityIndicator size="large" color={c.primary} />
       </View>
     );
   }
 
   if (isError || !eqData?.data) {
     return (
-      <View style={styles.centerContainer}>
-        <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
-        <Text style={styles.errorText}>Erro ao carregar detalhes do equipamento.</Text>
-        <TouchableOpacity onPress={() => refetch()} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>Tentar Novamente</Text>
+      <View style={s.centerContainer}>
+        <Ionicons name="alert-circle-outline" size={48} color={c.error} />
+        <Text style={s.errorText}>Erro ao carregar detalhes do equipamento.</Text>
+        <TouchableOpacity onPress={() => refetch()} style={s.backBtn}>
+          <Text style={s.backBtnText}>Tentar Novamente</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()} style={[s.backBtn, { marginTop: 10, backgroundColor: "transparent", borderWidth: 1, borderColor: c.border }]}>
+          <Text style={[s.backBtnText, { color: c.textSub }]}>Voltar</Text>
         </TouchableOpacity>
       </View>
     );
@@ -128,69 +153,69 @@ export default function EquipmentDetailScreen() {
   const maintenances = maintData?.data ?? [];
 
   return (
-    <View style={styles.container}>
+    <View style={s.container}>
       {/* Header Bar */}
-      <View style={[styles.header, { paddingTop: 12 + insets.top, minHeight: 64 + insets.top }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backAction}>
-          <Ionicons name="arrow-back" size={24} color="#F8FAFC" />
+      <View style={[s.header, { paddingTop: 12 + insets.top, minHeight: 64 + insets.top }]}>
+        <TouchableOpacity onPress={() => router.back()} style={s.backAction}>
+          <Ionicons name="arrow-back" size={24} color={c.headerText} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
+        <Text style={s.headerTitle} numberOfLines={1}>
           Detalhes do Equipamento
         </Text>
-        <View style={{ width: 24 }} /> {/* Balance space */}
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor="#6366F1" />}
+        contentContainerStyle={s.scrollContainer}
+        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={c.primary} />}
       >
         {/* Equipment Basic Info Banner */}
-        <Card style={styles.bannerCard}>
+        <Card style={s.bannerCard}>
           {eq.image_url ? (
-            <Image source={{ uri: eq.image_url }} style={styles.equipmentImage} />
+            <Image source={{ uri: eq.image_url }} style={s.equipmentImage} />
           ) : (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="cube" size={48} color="#475569" />
+            <View style={s.imagePlaceholder}>
+              <Ionicons name="cube" size={48} color={c.textMuted} />
             </View>
           )}
-          <View style={styles.bannerMeta}>
-            <Badge type={eq.status} style={styles.statusBadge} />
-            <Text style={styles.eqCode}>{eq.internal_code}</Text>
-            <Text style={styles.eqName}>{eq.name}</Text>
+          <View style={s.bannerMeta}>
+            <Badge type={eq.status} style={s.statusBadge} />
+            <Text style={s.eqCode}>{eq.internal_code}</Text>
+            <Text style={s.eqName}>{eq.name}</Text>
           </View>
         </Card>
 
         {/* Custom Tabs */}
-        <View style={styles.tabsRow}>
+        <View style={s.tabsRow}>
           <TouchableOpacity
             onPress={() => setActiveTab("info")}
-            style={[styles.tab, activeTab === "info" ? styles.tabActive : null]}
+            style={[s.tab, activeTab === "info" ? s.tabActive : null]}
           >
-            <Text style={[styles.tabLabel, activeTab === "info" ? styles.tabLabelActive : null]}>
+            <Text style={[s.tabLabel, activeTab === "info" ? s.tabLabelActive : null]}>
               Especificações
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setActiveTab("calibration")}
-            style={[styles.tab, activeTab === "calibration" ? styles.tabActive : null]}
+            style={[s.tab, activeTab === "calibration" ? s.tabActive : null]}
           >
-            <Text style={[styles.tabLabel, activeTab === "calibration" ? styles.tabLabelActive : null]}>
+            <Text style={[s.tabLabel, activeTab === "calibration" ? s.tabLabelActive : null]}>
               Calibração
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setActiveTab("history")}
-            style={[styles.tab, activeTab === "history" ? styles.tabActive : null]}
+            style={[s.tab, activeTab === "history" ? s.tabActive : null]}
           >
-            <Text style={[styles.tabLabel, activeTab === "history" ? styles.tabLabelActive : null]}>
+            <Text style={[s.tabLabel, activeTab === "history" ? s.tabLabelActive : null]}>
               Histórico
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setActiveTab("maintenance")}
-            style={[styles.tab, activeTab === "maintenance" ? styles.tabActive : null]}
+            style={[s.tab, activeTab === "maintenance" ? s.tabActive : null]}
           >
-            <Text style={[styles.tabLabel, activeTab === "maintenance" ? styles.tabLabelActive : null]}>
+            <Text style={[s.tabLabel, activeTab === "maintenance" ? s.tabLabelActive : null]}>
               Manutenção
             </Text>
           </TouchableOpacity>
@@ -199,43 +224,43 @@ export default function EquipmentDetailScreen() {
         {/* Tab Contents */}
         {activeTab === "info" && (
           <View>
-            <Card style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Características Gerais</Text>
-              
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Marca</Text>
-                <Text style={styles.infoValue}>{eq.brand || "Não especificado"}</Text>
+            <Card style={s.sectionCard}>
+              <Text style={s.sectionTitle}>Características Gerais</Text>
+
+              <View style={s.infoRow}>
+                <Text style={s.infoLabel}>Marca</Text>
+                <Text style={s.infoValue}>{eq.brand || "Não especificado"}</Text>
               </View>
 
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Modelo</Text>
-                <Text style={styles.infoValue}>{eq.model || "Não especificado"}</Text>
+              <View style={s.infoRow}>
+                <Text style={s.infoLabel}>Modelo</Text>
+                <Text style={s.infoValue}>{eq.model || "Não especificado"}</Text>
               </View>
 
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Nº de Série</Text>
-                <Text style={styles.infoValue}>{eq.serial_number || "Não especificado"}</Text>
+              <View style={s.infoRow}>
+                <Text style={s.infoLabel}>Nº de Série</Text>
+                <Text style={s.infoValue}>{eq.serial_number || "Não especificado"}</Text>
               </View>
 
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Localização</Text>
-                <Text style={styles.infoValue}>{eq.location || "Não especificado"}</Text>
+              <View style={s.infoRow}>
+                <Text style={s.infoLabel}>Localização</Text>
+                <Text style={s.infoValue}>{eq.location || "Não especificado"}</Text>
               </View>
 
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Categoria</Text>
-                <Text style={styles.infoValue}>{eq.category?.name || "Não especificado"}</Text>
+              <View style={s.infoRow}>
+                <Text style={s.infoLabel}>Categoria</Text>
+                <Text style={s.infoValue}>{eq.category?.name || "Não especificado"}</Text>
               </View>
 
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Data de Aquisição</Text>
-                <Text style={styles.infoValue}>{formatDateStr(eq.acquisition_date)}</Text>
+              <View style={s.infoRow}>
+                <Text style={s.infoLabel}>Data de Aquisição</Text>
+                <Text style={s.infoValue}>{formatDateStr(eq.acquisition_date)}</Text>
               </View>
 
               {eq.acquisition_cost != null ? (
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Custo de Aquisição</Text>
-                  <Text style={styles.infoValue}>
+                <View style={s.infoRow}>
+                  <Text style={s.infoLabel}>Custo de Aquisição</Text>
+                  <Text style={s.infoValue}>
                     R$ {eq.acquisition_cost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </Text>
                 </View>
@@ -243,20 +268,20 @@ export default function EquipmentDetailScreen() {
             </Card>
 
             {eq.notes ? (
-              <Card style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>Notas Observações</Text>
-                <Text style={styles.notesText}>{eq.notes}</Text>
+              <Card style={s.sectionCard}>
+                <Text style={s.sectionTitle}>Notas Observações</Text>
+                <Text style={s.notesText}>{eq.notes}</Text>
               </Card>
             ) : null}
 
             {/* Management Buttons */}
-            <View style={styles.actionsBox}>
+            <View style={s.actionsBox}>
               {can(user, "equipment:update") && (
                 <Button
                   title="Editar Equipamento"
                   variant="outline"
                   onPress={() => router.push({ pathname: "/(app)/equipment/[id]_edit" as any, params: { id } })}
-                  style={styles.actionBtn}
+                  style={s.actionBtn}
                 />
               )}
               {can(user, "equipment:delete") && (
@@ -264,7 +289,7 @@ export default function EquipmentDetailScreen() {
                   title="Excluir Equipamento"
                   variant="danger"
                   onPress={handleDelete}
-                  style={styles.actionBtn}
+                  style={s.actionBtn}
                 />
               )}
             </View>
@@ -273,27 +298,27 @@ export default function EquipmentDetailScreen() {
 
         {activeTab === "calibration" && (
           <View>
-            <Card style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Status de Calibração</Text>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Requer Calibração?</Text>
-                <Text style={styles.infoValue}>{eq.requires_calibration ? "Sim" : "Não"}</Text>
+            <Card style={s.sectionCard}>
+              <Text style={s.sectionTitle}>Status de Calibração</Text>
+              <View style={s.infoRow}>
+                <Text style={s.infoLabel}>Requer Calibração?</Text>
+                <Text style={s.infoValue}>{eq.requires_calibration ? "Sim" : "Não"}</Text>
               </View>
               {eq.requires_calibration && (
                 <>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Periodicidade</Text>
-                    <Text style={[styles.infoValue, { textTransform: "capitalize" }]}>
+                  <View style={s.infoRow}>
+                    <Text style={s.infoLabel}>Periodicidade</Text>
+                    <Text style={[s.infoValue, { textTransform: "capitalize" }]}>
                       {eq.calibration_periodicity || "N/A"}
                     </Text>
                   </View>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Última Calibração</Text>
-                    <Text style={styles.infoValue}>{formatDateStr(eq.last_calibration)}</Text>
+                  <View style={s.infoRow}>
+                    <Text style={s.infoLabel}>Última Calibração</Text>
+                    <Text style={s.infoValue}>{formatDateStr(eq.last_calibration)}</Text>
                   </View>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Próxima Calibração</Text>
-                    <Text style={[styles.infoValue, { color: "#F59E0B", fontWeight: "700" }]}>
+                  <View style={s.infoRow}>
+                    <Text style={s.infoLabel}>Próxima Calibração</Text>
+                    <Text style={[s.infoValue, { color: c.warningText, fontWeight: "700" }]}>
                       {formatDateStr(eq.next_calibration)}
                     </Text>
                   </View>
@@ -302,20 +327,20 @@ export default function EquipmentDetailScreen() {
             </Card>
 
             {/* Calibration Points */}
-            <Card style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Pontos Configurados ({points.length})</Text>
+            <Card style={s.sectionCard}>
+              <Text style={s.sectionTitle}>Pontos Configurados ({points.length})</Text>
               {points.length === 0 ? (
-                <Text style={styles.emptyCardText}>Nenhum ponto de calibração configurado.</Text>
+                <Text style={s.emptyCardText}>Nenhum ponto de calibração configurado.</Text>
               ) : (
                 points.map((p, idx) => (
-                  <View key={p.id} style={styles.pointRow}>
-                    <Text style={styles.pointNum}>#{idx + 1}</Text>
-                    <View style={styles.pointDetails}>
-                      <Text style={styles.pointValueText}>Valor: {p.point_value}</Text>
-                      <Text style={styles.pointCriterionText}>Critério: {p.criterion}</Text>
+                  <View key={p.id} style={s.pointRow}>
+                    <Text style={s.pointNum}>#{idx + 1}</Text>
+                    <View style={s.pointDetails}>
+                      <Text style={s.pointValueText}>Valor: {p.point_value}</Text>
+                      <Text style={s.pointCriterionText}>Critério: {p.criterion}</Text>
                     </View>
                     {p.error_tolerance !== null && (
-                      <Text style={styles.pointTolerance}>Tolerância: ±{p.error_tolerance}</Text>
+                      <Text style={s.pointTolerance}>Tolerância: ±{p.error_tolerance}</Text>
                     )}
                   </View>
                 ))
@@ -323,29 +348,29 @@ export default function EquipmentDetailScreen() {
             </Card>
 
             {/* Calibration Logs */}
-            <Card style={styles.sectionCard}>
-              <View style={styles.recordsHeader}>
-                <Text style={styles.sectionTitle}>Histórico de Registros ({records.length})</Text>
+            <Card style={s.sectionCard}>
+              <View style={s.recordsHeader}>
+                <Text style={s.sectionTitle}>Histórico de Registros ({records.length})</Text>
                 {can(user, "calibration:register") && (
                   <TouchableOpacity
                     onPress={() => router.push({ pathname: "/(app)/equipment/calibration/[id]" as any, params: { id } })}
-                    style={styles.registerBtn}
+                    style={s.registerBtn}
                   >
-                    <Text style={styles.registerBtnText}>Registrar</Text>
+                    <Text style={s.registerBtnText}>Registrar</Text>
                   </TouchableOpacity>
                 )}
               </View>
 
               {records.length === 0 ? (
-                <Text style={styles.emptyCardText}>Nenhum histórico registrado ainda.</Text>
+                <Text style={s.emptyCardText}>Nenhum histórico registrado ainda.</Text>
               ) : (
                 records.map((r) => (
-                  <View key={r.id} style={styles.recordRow}>
-                    <View style={styles.recordMeta}>
-                      <Text style={styles.recordPerformer}>Realizado por: {r.performer?.name || "Desconhecido"}</Text>
-                      <Text style={styles.recordDate}>{formatDateStr(r.performed_at)}</Text>
+                  <View key={r.id} style={s.recordRow}>
+                    <View style={s.recordMeta}>
+                      <Text style={s.recordPerformer}>Realizado por: {r.performer?.name || "Desconhecido"}</Text>
+                      <Text style={s.recordDate}>{formatDateStr(r.performed_at)}</Text>
                     </View>
-                    {r.notes ? <Text style={styles.recordNotes}>{r.notes}</Text> : null}
+                    {r.notes ? <Text style={s.recordNotes}>{r.notes}</Text> : null}
                   </View>
                 ))
               )}
@@ -354,21 +379,21 @@ export default function EquipmentDetailScreen() {
         )}
 
         {activeTab === "history" && (
-          <Card style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Linha do Tempo de Atividades</Text>
+          <Card style={s.sectionCard}>
+            <Text style={s.sectionTitle}>Linha do Tempo de Atividades</Text>
             {history.length === 0 ? (
-              <Text style={styles.emptyCardText}>Nenhum histórico registrado.</Text>
+              <Text style={s.emptyCardText}>Nenhum histórico registrado.</Text>
             ) : (
               history.map((h, idx) => (
-                <View key={h.id} style={styles.timelineRow}>
-                  <View style={styles.timelineIndicators}>
-                    <View style={styles.timelineDot} />
-                    {idx < history.length - 1 && <View style={styles.timelineLine} />}
+                <View key={h.id} style={s.timelineRow}>
+                  <View style={s.timelineIndicators}>
+                    <View style={s.timelineDot} />
+                    {idx < history.length - 1 && <View style={s.timelineLine} />}
                   </View>
-                  <View style={styles.timelineContent}>
-                    <Text style={styles.timelineAction}>{h.action}</Text>
-                    <Text style={styles.timelineDesc}>{h.description}</Text>
-                    <Text style={styles.timelineUserDate}>
+                  <View style={s.timelineContent}>
+                    <Text style={s.timelineAction}>{translateAction(h.action)}</Text>
+                    <Text style={s.timelineDesc}>{h.description}</Text>
+                    <Text style={s.timelineUserDate}>
                       {h.user?.name || "Sistema"} • {formatDateStr(h.created_at)}
                     </Text>
                   </View>
@@ -380,33 +405,33 @@ export default function EquipmentDetailScreen() {
 
         {activeTab === "maintenance" && (
           <View>
-            <Card style={styles.sectionCard}>
-              <View style={styles.recordsHeader}>
-                <Text style={styles.sectionTitle}>Manutenções ({maintenances.length})</Text>
+            <Card style={s.sectionCard}>
+              <View style={s.recordsHeader}>
+                <Text style={s.sectionTitle}>Manutenções ({maintenances.length})</Text>
                 {can(user, "calibration:register") && (
-                  <TouchableOpacity onPress={() => setMaintModalVisible(true)} style={styles.registerBtn}>
-                    <Text style={styles.registerBtnText}>Registrar</Text>
+                  <TouchableOpacity onPress={() => setMaintModalVisible(true)} style={s.registerBtn}>
+                    <Text style={s.registerBtnText}>Registrar</Text>
                   </TouchableOpacity>
                 )}
               </View>
               {maintenances.length === 0 ? (
-                <Text style={styles.emptyCardText}>Nenhuma manutenção registrada.</Text>
+                <Text style={s.emptyCardText}>Nenhuma manutenção registrada.</Text>
               ) : (
                 maintenances.map((m) => (
-                  <View key={m.id} style={styles.maintRow}>
-                    <View style={styles.recordMeta}>
-                      <Text style={styles.recordPerformer}>{m.description}</Text>
-                      <Text style={styles.recordDate}>{formatDateStr(m.performed_at)}</Text>
+                  <View key={m.id} style={s.maintRow}>
+                    <View style={s.recordMeta}>
+                      <Text style={s.recordPerformer}>{m.description}</Text>
+                      <Text style={s.recordDate}>{formatDateStr(m.performed_at)}</Text>
                     </View>
                     {m.performer?.name ? (
-                      <Text style={styles.maintPerformer}>Por: {m.performer.name}</Text>
+                      <Text style={s.maintPerformer}>Por: {m.performer.name}</Text>
                     ) : null}
                     {m.cost != null ? (
-                      <Text style={styles.maintCost}>
+                      <Text style={s.maintCost}>
                         Custo: R$ {m.cost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                       </Text>
                     ) : null}
-                    {m.notes ? <Text style={styles.recordNotes}>{m.notes}</Text> : null}
+                    {m.notes ? <Text style={s.recordNotes}>{m.notes}</Text> : null}
                   </View>
                 ))
               )}
@@ -421,57 +446,57 @@ export default function EquipmentDetailScreen() {
         transparent
         onRequestClose={() => setMaintModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Registrar Manutenção</Text>
+        <View style={s.modalOverlay}>
+          <View style={s.modalBox}>
+            <Text style={s.modalTitle}>Registrar Manutenção</Text>
 
-            <Text style={styles.modalLabel}>Data de Realização *</Text>
+            <Text style={s.modalLabel}>Data de Realização *</Text>
             <TextInput
-              style={styles.modalInput}
+              style={s.modalInput}
               placeholder="AAAA-MM-DD"
-              placeholderTextColor="#475569"
+              placeholderTextColor={c.textMuted}
               value={maintDate}
               onChangeText={setMaintDate}
             />
 
-            <Text style={styles.modalLabel}>Descrição *</Text>
+            <Text style={s.modalLabel}>Descrição *</Text>
             <TextInput
-              style={[styles.modalInput, styles.modalTextArea]}
+              style={[s.modalInput, s.modalTextArea]}
               placeholder="Descreva a manutenção realizada"
-              placeholderTextColor="#475569"
+              placeholderTextColor={c.textMuted}
               value={maintDesc}
               onChangeText={setMaintDesc}
               multiline
               numberOfLines={3}
             />
 
-            <Text style={styles.modalLabel}>Custo (R$)</Text>
+            <Text style={s.modalLabel}>Custo (R$)</Text>
             <TextInput
-              style={styles.modalInput}
+              style={s.modalInput}
               placeholder="Ex: 500.00"
-              placeholderTextColor="#475569"
+              placeholderTextColor={c.textMuted}
               value={maintCost}
               onChangeText={setMaintCost}
               keyboardType="decimal-pad"
             />
 
-            <Text style={styles.modalLabel}>Observações</Text>
+            <Text style={s.modalLabel}>Observações</Text>
             <TextInput
-              style={[styles.modalInput, styles.modalTextArea]}
+              style={[s.modalInput, s.modalTextArea]}
               placeholder="Observações adicionais"
-              placeholderTextColor="#475569"
+              placeholderTextColor={c.textMuted}
               value={maintNotes}
               onChangeText={setMaintNotes}
               multiline
               numberOfLines={2}
             />
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setMaintModalVisible(false)}>
-                <Text style={styles.modalCancelText}>Cancelar</Text>
+            <View style={s.modalActions}>
+              <TouchableOpacity style={s.modalCancelBtn} onPress={() => setMaintModalVisible(false)}>
+                <Text style={s.modalCancelText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalSaveBtn, addMaintMutation.isPending ? styles.modalSaveBtnDisabled : null]}
+                style={[s.modalSaveBtn, addMaintMutation.isPending ? s.modalSaveBtnDisabled : null]}
                 onPress={() => {
                   if (!maintDate.trim() || !maintDesc.trim()) {
                     Alert.alert("Campos obrigatórios", "Preencha a data e a descrição.");
@@ -486,7 +511,7 @@ export default function EquipmentDetailScreen() {
                 }}
                 disabled={addMaintMutation.isPending}
               >
-                <Text style={styles.modalSaveText}>
+                <Text style={s.modalSaveText}>
                   {addMaintMutation.isPending ? "Salvando..." : "Salvar"}
                 </Text>
               </TouchableOpacity>
@@ -498,362 +523,363 @@ export default function EquipmentDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#0F0F10",
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#0F0F10",
-    padding: 24,
-  },
-  errorText: {
-    color: "#EF4444",
-    fontSize: 15,
-    marginTop: 12,
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  backBtn: {
-    backgroundColor: "#6366F1",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  backBtnText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#111214",
-    borderBottomWidth: 1,
-    borderBottomColor: "#2E3033",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  backAction: {
-    padding: 4,
-  },
-  headerTitle: {
-    color: "#F8FAFC",
-    fontSize: 16,
-    fontWeight: "700",
-    maxWidth: "80%",
-  },
-  scrollContainer: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  bannerCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    marginBottom: 16,
-  },
-  equipmentImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    backgroundColor: "#1F2022",
-  },
-  imagePlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    backgroundColor: "#1C1D20",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#2E3033",
-  },
-  bannerMeta: {
-    flex: 1,
-    marginLeft: 16,
-    justifyContent: "center",
-  },
-  statusBadge: {
-    marginBottom: 6,
-  },
-  eqCode: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#F8FAFC",
-  },
-  eqName: {
-    fontSize: 14,
-    color: "#94A3B8",
-    marginTop: 2,
-  },
-  tabsRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#2E3033",
-    marginBottom: 16,
-  },
-  tab: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-  },
-  tabActive: {
-    borderBottomColor: "#6366F1",
-  },
-  tabLabel: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#64748B",
-  },
-  tabLabelActive: {
-    color: "#6366F1",
-    fontWeight: "700",
-  },
-  sectionCard: {
-    backgroundColor: "#151618",
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#F8FAFC",
-    marginBottom: 16,
-  },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#212225",
-  },
-  infoLabel: {
-    color: "#64748B",
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  infoValue: {
-    color: "#E2E8F0",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  notesText: {
-    color: "#94A3B8",
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  actionsBox: {
-    gap: 8,
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  actionBtn: {
-    marginVertical: 0,
-  },
-  emptyCardText: {
-    color: "#475569",
-    fontSize: 13,
-    textAlign: "center",
-    paddingVertical: 12,
-  },
-  pointRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#212225",
-  },
-  pointNum: {
-    color: "#6366F1",
-    fontWeight: "700",
-    fontSize: 14,
-    marginRight: 12,
-  },
-  pointDetails: {
-    flex: 1,
-  },
-  pointValueText: {
-    color: "#E2E8F0",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  pointCriterionText: {
-    color: "#64748B",
-    fontSize: 12,
-    marginTop: 2,
-  },
-  pointTolerance: {
-    color: "#94A3B8",
-    fontSize: 12,
-  },
-  recordsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  registerBtn: {
-    backgroundColor: "#6366F1",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  registerBtnText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  recordRow: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#212225",
-  },
-  recordMeta: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 4,
-  },
-  recordPerformer: {
-    color: "#E2E8F0",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  recordDate: {
-    color: "#64748B",
-    fontSize: 11,
-  },
-  recordNotes: {
-    color: "#94A3B8",
-    fontSize: 12,
-  },
-  timelineRow: {
-    flexDirection: "row",
-    minHeight: 64,
-  },
-  timelineIndicators: {
-    alignItems: "center",
-    width: 24,
-  },
-  timelineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#6366F1",
-    marginTop: 6,
-  },
-  timelineLine: {
-    flex: 1,
-    width: 2,
-    backgroundColor: "#2E3033",
-  },
-  timelineContent: {
-    flex: 1,
-    marginLeft: 12,
-    paddingBottom: 16,
-  },
-  timelineAction: {
-    color: "#F8FAFC",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  timelineDesc: {
-    color: "#94A3B8",
-    fontSize: 12,
-    marginTop: 2,
-  },
-  timelineUserDate: {
-    color: "#475569",
-    fontSize: 11,
-    marginTop: 4,
-  },
-  maintRow: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#212225",
-  },
-  maintPerformer: {
-    color: "#94A3B8",
-    fontSize: 12,
-    marginTop: 2,
-  },
-  maintCost: {
-    color: "#34D399",
-    fontSize: 12,
-    marginTop: 2,
-    fontWeight: "600",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.75)",
-    justifyContent: "flex-end",
-  },
-  modalBox: {
-    backgroundColor: "#151618",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    paddingBottom: 40,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#F8FAFC",
-    marginBottom: 20,
-  },
-  modalLabel: {
-    fontSize: 12,
-    color: "#94A3B8",
-    marginBottom: 6,
-    marginTop: 12,
-  },
-  modalInput: {
-    backgroundColor: "#0F0F10",
-    borderWidth: 1,
-    borderColor: "#2E3033",
-    borderRadius: 8,
-    color: "#F8FAFC",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-  },
-  modalTextArea: {
-    height: 80,
-    textAlignVertical: "top",
-  },
-  modalActions: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 20,
-  },
-  modalCancelBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#2E3033",
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  modalCancelText: {
-    color: "#94A3B8",
-    fontWeight: "600",
-  },
-  modalSaveBtn: {
-    flex: 1,
-    backgroundColor: "#6366F1",
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  modalSaveBtnDisabled: {
-    opacity: 0.6,
-  },
-  modalSaveText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-  },
-});
+function makeStyles(c: Colors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.bg,
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: c.bg,
+      padding: 24,
+    },
+    errorText: {
+      color: c.error,
+      fontSize: 15,
+      marginTop: 12,
+      textAlign: "center",
+      marginBottom: 16,
+    },
+    backBtn: {
+      backgroundColor: c.primary,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 8,
+    },
+    backBtnText: {
+      color: "#FFFFFF",
+      fontWeight: "600",
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: c.header,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+    },
+    backAction: {
+      padding: 4,
+    },
+    headerTitle: {
+      color: c.headerText,
+      fontSize: 16,
+      fontWeight: "700",
+      maxWidth: "80%",
+    },
+    scrollContainer: {
+      padding: 16,
+      paddingBottom: 32,
+    },
+    bannerCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 16,
+      marginBottom: 16,
+    },
+    equipmentImage: {
+      width: 80,
+      height: 80,
+      borderRadius: 8,
+      backgroundColor: c.surface2,
+    },
+    imagePlaceholder: {
+      width: 80,
+      height: 80,
+      borderRadius: 8,
+      backgroundColor: c.surface2,
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    bannerMeta: {
+      flex: 1,
+      marginLeft: 16,
+      justifyContent: "center",
+    },
+    statusBadge: {
+      marginBottom: 6,
+    },
+    eqCode: {
+      fontSize: 18,
+      fontWeight: "800",
+      color: c.text,
+    },
+    eqName: {
+      fontSize: 14,
+      color: c.textSub,
+      marginTop: 2,
+    },
+    tabsRow: {
+      flexDirection: "row",
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+      marginBottom: 16,
+    },
+    tab: {
+      flex: 1,
+      alignItems: "center",
+      paddingVertical: 12,
+      borderBottomWidth: 2,
+      borderBottomColor: "transparent",
+    },
+    tabActive: {
+      borderBottomColor: c.primary,
+    },
+    tabLabel: {
+      fontSize: 13,
+      fontWeight: "500",
+      color: c.textMuted,
+    },
+    tabLabelActive: {
+      color: c.primary,
+      fontWeight: "700",
+    },
+    sectionCard: {
+      marginBottom: 16,
+    },
+    sectionTitle: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: c.text,
+      marginBottom: 16,
+    },
+    infoRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: c.divider,
+    },
+    infoLabel: {
+      color: c.textMuted,
+      fontSize: 13,
+      fontWeight: "500",
+    },
+    infoValue: {
+      color: c.text,
+      fontSize: 13,
+      fontWeight: "600",
+    },
+    notesText: {
+      color: c.textSub,
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    actionsBox: {
+      gap: 8,
+      marginTop: 8,
+      marginBottom: 24,
+    },
+    actionBtn: {
+      marginVertical: 0,
+    },
+    emptyCardText: {
+      color: c.textMuted,
+      fontSize: 13,
+      textAlign: "center",
+      paddingVertical: 12,
+    },
+    pointRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: c.divider,
+    },
+    pointNum: {
+      color: c.primary,
+      fontWeight: "700",
+      fontSize: 14,
+      marginRight: 12,
+    },
+    pointDetails: {
+      flex: 1,
+    },
+    pointValueText: {
+      color: c.text,
+      fontSize: 13,
+      fontWeight: "600",
+    },
+    pointCriterionText: {
+      color: c.textMuted,
+      fontSize: 12,
+      marginTop: 2,
+    },
+    pointTolerance: {
+      color: c.textSub,
+      fontSize: 12,
+    },
+    recordsHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    registerBtn: {
+      backgroundColor: c.primary,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 6,
+    },
+    registerBtnText: {
+      color: "#FFFFFF",
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    recordRow: {
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: c.divider,
+    },
+    recordMeta: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 4,
+    },
+    recordPerformer: {
+      color: c.text,
+      fontSize: 13,
+      fontWeight: "600",
+    },
+    recordDate: {
+      color: c.textMuted,
+      fontSize: 11,
+    },
+    recordNotes: {
+      color: c.textSub,
+      fontSize: 12,
+    },
+    timelineRow: {
+      flexDirection: "row",
+      minHeight: 64,
+    },
+    timelineIndicators: {
+      alignItems: "center",
+      width: 24,
+    },
+    timelineDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: c.primary,
+      marginTop: 6,
+    },
+    timelineLine: {
+      flex: 1,
+      width: 2,
+      backgroundColor: c.border,
+    },
+    timelineContent: {
+      flex: 1,
+      marginLeft: 12,
+      paddingBottom: 16,
+    },
+    timelineAction: {
+      color: c.text,
+      fontSize: 14,
+      fontWeight: "700",
+    },
+    timelineDesc: {
+      color: c.textSub,
+      fontSize: 12,
+      marginTop: 2,
+    },
+    timelineUserDate: {
+      color: c.textMuted,
+      fontSize: 11,
+      marginTop: 4,
+    },
+    maintRow: {
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: c.divider,
+    },
+    maintPerformer: {
+      color: c.textSub,
+      fontSize: 12,
+      marginTop: 2,
+    },
+    maintCost: {
+      color: c.successText,
+      fontSize: 12,
+      marginTop: 2,
+      fontWeight: "600",
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: c.overlay,
+      justifyContent: "flex-end",
+    },
+    modalBox: {
+      backgroundColor: c.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 24,
+      paddingBottom: 40,
+    },
+    modalTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: c.text,
+      marginBottom: 20,
+    },
+    modalLabel: {
+      fontSize: 12,
+      color: c.textSub,
+      marginBottom: 6,
+      marginTop: 12,
+    },
+    modalInput: {
+      backgroundColor: c.bg,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      color: c.text,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 14,
+    },
+    modalTextArea: {
+      height: 80,
+      textAlignVertical: "top",
+    },
+    modalActions: {
+      flexDirection: "row",
+      gap: 12,
+      marginTop: 20,
+    },
+    modalCancelBtn: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      paddingVertical: 12,
+      alignItems: "center",
+    },
+    modalCancelText: {
+      color: c.textSub,
+      fontWeight: "600",
+    },
+    modalSaveBtn: {
+      flex: 1,
+      backgroundColor: c.primary,
+      borderRadius: 8,
+      paddingVertical: 12,
+      alignItems: "center",
+    },
+    modalSaveBtnDisabled: {
+      opacity: 0.6,
+    },
+    modalSaveText: {
+      color: "#FFFFFF",
+      fontWeight: "700",
+    },
+  });
+}

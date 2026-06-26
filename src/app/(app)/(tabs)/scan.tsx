@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
-  TextInput, ScrollView, KeyboardAvoidingView, Platform, FlatList,
+  TextInput, ScrollView, KeyboardAvoidingView, Platform, FlatList, Alert,
 } from "react-native";
 import { Camera, CameraView } from "expo-camera";
 import { useRouter } from "expo-router";
@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
 import { equipmentApi } from "../../../api/equipment";
 import { apiFetch } from "../../../api/client";
+import { tokenStorage } from "../../../auth/tokenStorage";
 import type { Equipment } from "../../../types/api";
 
 const UUID_REGEX = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
@@ -70,29 +71,53 @@ export default function ScanTabScreen() {
     if (scanned || resolving) return;
     setScanned(true);
 
-    // Direct UUID in QR data
-    const uuidMatch = data.match(UUID_REGEX);
-    if (uuidMatch) {
-      navigateToEquipment(uuidMatch[0]);
-      return;
-    }
-
-    // QR token URL — extract token and call API
+    // QR token URL — resolve token via API
     const tokenMatch = data.match(QR_TOKEN_REGEX);
     if (tokenMatch) {
       const token = tokenMatch[1];
       setResolving(true);
       try {
-        const result = await apiFetch<{ equipment_id: string }>(`/api/equipment/qr/${token}`);
-        if (result.equipment_id) {
-          navigateToEquipment(result.equipment_id);
+        const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3000";
+        const session = await tokenStorage.loadSession();
+        const resp = await fetch(`${BASE_URL}/api/equipment/qr/${token}`, {
+          headers: {
+            Accept: "application/json",
+            ...(session.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
+          },
+        });
+
+        // New backend: returns JSON { equipment_id }
+        const contentType = resp.headers.get("content-type") ?? "";
+        if (contentType.includes("application/json")) {
+          const json = await resp.json().catch(() => ({}));
+          const equipmentId = json.equipment_id ?? json.data?.equipment_id;
+          if (equipmentId) {
+            navigateToEquipment(equipmentId);
+            return;
+          }
+        }
+
+        // Old backend (or current Vercel deploy): redirects to /equipment/UUID
+        // resp.url is the final URL after fetch follows the redirect
+        const finalUrlMatch = resp.url.match(/\/equipment\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+        if (finalUrlMatch) {
+          navigateToEquipment(finalUrlMatch[1]);
           return;
         }
       } catch {
-        // fall through to manual input
+        // network error — fall through to manual input
       } finally {
         setResolving(false);
       }
+      setShowManualInput(true);
+      return;
+    }
+
+    // Direct UUID in QR data (no URL wrapping)
+    const uuidMatch = data.match(UUID_REGEX);
+    if (uuidMatch) {
+      navigateToEquipment(uuidMatch[0]);
+      return;
     }
 
     setShowManualInput(true);

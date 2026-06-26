@@ -282,10 +282,10 @@ export default function ReportsScreen() {
 
 function makeStyles(c: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: c.background },
+    container: { flex: 1, backgroundColor: c.bg },
     content: { paddingBottom: 32 },
     center: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 64 },
-    loadingText: { marginTop: 12, color: c.textSecondary, fontSize: 14 },
+    loadingText: { marginTop: 12, color: c.textSub, fontSize: 14 },
     errorText: { color: "#dc2626", fontSize: 14 },
     retryBtn: { marginTop: 12 },
     retryText: { fontSize: 14, fontWeight: "600" },
@@ -296,18 +296,18 @@ function makeStyles(c: ReturnType<typeof useTheme>["colors"]) {
       borderBottomWidth: 2, borderBottomColor: "transparent",
     },
     tabBtnActive: { borderBottomColor: c.primary },
-    tabLabel: { fontSize: 13, fontWeight: "500", color: c.textSecondary },
+    tabLabel: { fontSize: 13, fontWeight: "500", color: c.textSub },
     tabLabelActive: { color: c.primary, fontWeight: "600" },
     section: { padding: 16, gap: 12 },
     cardRow: { flexDirection: "row", gap: 12, marginBottom: 0 },
     statCard: {
-      backgroundColor: c.card, borderRadius: 12, padding: 16,
+      backgroundColor: c.surface, borderRadius: 12, padding: 16,
       borderWidth: 1, borderColor: c.border, marginBottom: 12,
     },
     statLabel: { fontSize: 11, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
     statValue: { fontSize: 20, fontWeight: "800", color: c.text },
     tableCard: {
-      backgroundColor: c.card, borderRadius: 12, padding: 16,
+      backgroundColor: c.surface, borderRadius: 12, padding: 16,
       borderWidth: 1, borderColor: c.border,
     },
     tableTitle: { fontSize: 14, fontWeight: "700", color: c.text, marginBottom: 12 },
@@ -318,7 +318,7 @@ function makeStyles(c: ReturnType<typeof useTheme>["colors"]) {
     tableRowLeft: { flex: 1, marginRight: 8 },
     tableEquipName: { fontSize: 13, fontWeight: "600", color: c.text, marginBottom: 4 },
     tableCosts: { gap: 2 },
-    tableSubCell: { fontSize: 12, color: c.textSecondary },
+    tableSubCell: { fontSize: 12, color: c.textSub },
     statusBadge: {
       borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
       alignSelf: "flex-start",
@@ -330,6 +330,6 @@ function makeStyles(c: ReturnType<typeof useTheme>["colors"]) {
     },
     kvKey: { fontSize: 13, color: c.text },
     kvVal: { fontSize: 13, fontWeight: "700", color: c.text },
-    empty: { fontSize: 13, color: c.textSecondary, textAlign: "center", paddingVertical: 12 },
+    empty: { fontSize: 13, color: c.textSub, textAlign: "center", paddingVertical: 12 },
   });
 }

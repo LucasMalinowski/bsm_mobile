@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,6 +13,8 @@ import { companyApi } from "../../api/company";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
+import { useTheme } from "../../contexts/ThemeContext";
+import type { Colors } from "../../constants/colors";
 
 const schema = z.object({
   name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
@@ -25,8 +27,9 @@ export default function CompanySettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const queryClient = useQueryClient();
-
   const companyId = user?.company_id;
 
   const { data, isLoading, isError } = useQuery({
@@ -55,23 +58,21 @@ export default function CompanySettingsScreen() {
       <View style={s.container}>
         <View style={[s.header, { paddingTop: 12 + insets.top, minHeight: 64 + insets.top }]}>
           <TouchableOpacity onPress={() => router.back()} style={s.backAction}>
-            <Ionicons name="arrow-back" size={24} color="#F8FAFC" />
+            <Ionicons name="arrow-back" size={24} color={c.headerText} />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Empresa</Text>
           <View style={{ width: 24 }} />
         </View>
-        <View style={s.center}>
-          <Text style={s.errorText}>Nenhuma empresa associada à conta.</Text>
-        </View>
+        <View style={s.center}><Text style={s.errorText}>Nenhuma empresa associada à conta.</Text></View>
       </View>
     );
   }
 
   return (
     <View style={s.container}>
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: 12 + insets.top, minHeight: 64 + insets.top }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backAction}>
-          <Ionicons name="arrow-back" size={24} color="#F8FAFC" />
+          <Ionicons name="arrow-back" size={24} color={c.headerText} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Configurações da Empresa</Text>
         <View style={{ width: 24 }} />
@@ -79,49 +80,22 @@ export default function CompanySettingsScreen() {
 
       <ScrollView contentContainerStyle={s.scroll}>
         {isLoading ? (
-          <View style={s.center}><ActivityIndicator size="large" color="#6366F1" /></View>
+          <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>
         ) : isError ? (
           <View style={s.center}>
-            <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
+            <Ionicons name="alert-circle-outline" size={40} color={c.error} />
             <Text style={s.errorText}>Erro ao carregar dados da empresa.</Text>
           </View>
         ) : (
           <>
             <Card style={s.card}>
               <Text style={s.sectionTitle}>Dados da Empresa</Text>
-
-              <Controller
-                control={control}
-                name="name"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <Input
-                    label="Nome da Empresa *"
-                    placeholder="Nome da empresa"
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    value={value}
-                    error={errors.name?.message}
-                    editable={can(user, "company:settings")}
-                  />
-                )}
-              />
-
-              <Controller
-                control={control}
-                name="cnpj"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <Input
-                    label="CNPJ"
-                    placeholder="00.000.000/0000-00"
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    value={value ?? ""}
-                    keyboardType="numeric"
-                    editable={user?.role === "super_admin"}
-                  />
-                )}
-              />
-
+              <Controller control={control} name="name" render={({ field: { onChange, onBlur, value } }) => (
+                <Input label="Nome da Empresa *" placeholder="Nome da empresa" onBlur={onBlur} onChangeText={onChange} value={value} error={errors.name?.message} editable={can(user, "company:settings")} />
+              )} />
+              <Controller control={control} name="cnpj" render={({ field: { onChange, onBlur, value } }) => (
+                <Input label="CNPJ" placeholder="00.000.000/0000-00" onBlur={onBlur} onChangeText={onChange} value={value ?? ""} keyboardType="numeric" editable={user?.role === "super_admin"} />
+              )} />
               {data?.data.slug && (
                 <View style={s.infoRow}>
                   <Text style={s.infoLabel}>Slug</Text>
@@ -129,14 +103,8 @@ export default function CompanySettingsScreen() {
                 </View>
               )}
             </Card>
-
             {can(user, "company:settings") && (
-              <Button
-                title="Salvar Alterações"
-                onPress={handleSubmit((d) => updateMutation.mutate(d))}
-                loading={updateMutation.isPending}
-                disabled={!isDirty}
-              />
+              <Button title="Salvar Alterações" onPress={handleSubmit((d) => updateMutation.mutate(d))} loading={updateMutation.isPending} disabled={!isDirty} />
             )}
           </>
         )}
@@ -145,17 +113,19 @@ export default function CompanySettingsScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F0F10" },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033", paddingHorizontal: 16, paddingBottom: 12 },
-  backAction: { padding: 4 },
-  headerTitle: { color: "#F8FAFC", fontSize: 16, fontWeight: "700" },
-  scroll: { padding: 16, paddingBottom: 40 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: 48 },
-  errorText: { color: "#EF4444", fontSize: 14, marginTop: 12 },
-  card: { backgroundColor: "#151618", marginBottom: 16 },
-  sectionTitle: { fontSize: 14, fontWeight: "700", color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 },
-  infoRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 12, borderTopWidth: 1, borderTopColor: "#212225", marginTop: 4 },
-  infoLabel: { color: "#64748B", fontSize: 13 },
-  infoValue: { color: "#E2E8F0", fontSize: 13, fontWeight: "600" },
-});
+function makeStyles(c: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: c.header, borderBottomWidth: 1, borderBottomColor: c.border, paddingHorizontal: 16, paddingBottom: 12 },
+    backAction: { padding: 4 },
+    headerTitle: { color: c.headerText, fontSize: 16, fontWeight: "700" },
+    scroll: { padding: 16, paddingBottom: 40 },
+    center: { flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: 48 },
+    errorText: { color: c.error, fontSize: 14, marginTop: 12 },
+    card: { marginBottom: 16 },
+    sectionTitle: { fontSize: 14, fontWeight: "700", color: c.textSub, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 },
+    infoRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 12, borderTopWidth: 1, borderTopColor: c.divider, marginTop: 4 },
+    infoLabel: { color: c.textMuted, fontSize: 13 },
+    infoValue: { color: c.text, fontSize: 13, fontWeight: "600" },
+  });
+}

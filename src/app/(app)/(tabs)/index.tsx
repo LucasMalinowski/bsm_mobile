@@ -37,7 +37,7 @@ function formatDate() {
 
 export default function DashboardScreen() {
   const { user, activeCompanyId } = useAuth();
-  const { colors: c } = useTheme();
+  const { colors: c, isDark } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
@@ -113,28 +113,28 @@ export default function DashboardScreen() {
     {
       label: "Equipamentos",
       value: totalEquipment,
-      iconBg: "#eff6ff",
+      iconBg: isDark ? "#0a2540" : "#eff6ff",
       icon: <Ionicons name="cube-outline" size={16} color="#2563eb" />,
       onPress: () => router.push("/(app)/(tabs)/equipment"),
     },
     {
       label: "Chamados Abertos",
       value: openTicketsCount,
-      iconBg: "#fff7ed",
+      iconBg: isDark ? "#2a1003" : "#fff7ed",
       icon: <Ionicons name="ticket-outline" size={16} color="#ea580c" />,
       onPress: () => router.push("/(app)/(tabs)/tickets"),
     },
     {
       label: "Em Andamento",
       value: inProgressCount,
-      iconBg: "#fefce8",
+      iconBg: isDark ? "#3C1F03" : "#fefce8",
       icon: <Ionicons name="flash-outline" size={16} color="#ca8a04" />,
       onPress: () => router.push("/(app)/(tabs)/tickets"),
     },
     {
       label: "Resolvidos",
       value: resolvedCount,
-      iconBg: "#f0fdf4",
+      iconBg: isDark ? "#022C22" : "#f0fdf4",
       icon: <Ionicons name="checkmark-circle-outline" size={16} color="#16a34a" />,
       onPress: () => router.push("/(app)/(tabs)/tickets"),
     },

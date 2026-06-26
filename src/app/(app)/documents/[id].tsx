@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Alert, Linking, RefreshControl, Switch,
@@ -15,6 +15,8 @@ import { Button } from "../../../components/ui/Button";
 import { documentsApi } from "../../../api/documents";
 import { useAuth } from "../../../auth/AuthProvider";
 import { can } from "../../../auth/permissions";
+import { useTheme } from "../../../contexts/ThemeContext";
+import type { Colors } from "../../../constants/colors";
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -27,6 +29,8 @@ export default function DocumentDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { colors: c } = useTheme();
+  const s = useMemo(() => makeStyles(c), [c]);
   const queryClient = useQueryClient();
   const [uploadingVersion, setUploadingVersion] = useState(false);
 
@@ -43,10 +47,7 @@ export default function DocumentDetailScreen() {
 
   const deleteMutation = useMutation({
     mutationFn: () => documentsApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["documents"] });
-      router.replace("/(app)/(tabs)/documents");
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["documents"] }); router.replace("/(app)/(tabs)/documents"); },
     onError: (err: any) => Alert.alert("Erro", err.message || "Não foi possível excluir o documento."),
   });
 
@@ -54,12 +55,7 @@ export default function DocumentDetailScreen() {
     try {
       const res = await documentsApi.getDownloadUrl(id);
       const downloadUrl = typeof res === "string" ? res : (res as any)?.url ?? (res as any)?.signed_url;
-
-      if (!downloadUrl) {
-        Alert.alert("Erro", "URL de download não disponível.");
-        return;
-      }
-
+      if (!downloadUrl) { Alert.alert("Erro", "URL de download não disponível."); return; }
       const canOpen = await Linking.canOpenURL(downloadUrl);
       if (canOpen) {
         await Linking.openURL(downloadUrl);
@@ -68,11 +64,8 @@ export default function DocumentDetailScreen() {
         const localUri = `${(FileSystem as any).cacheDirectory}${fileName}`;
         const downloadRes = await FileSystem.downloadAsync(downloadUrl, localUri);
         const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
-          await Sharing.shareAsync(downloadRes.uri);
-        } else {
-          Alert.alert("Baixado", `Arquivo salvo em: ${downloadRes.uri}`);
-        }
+        if (canShare) { await Sharing.shareAsync(downloadRes.uri); }
+        else { Alert.alert("Baixado", `Arquivo salvo em: ${downloadRes.uri}`); }
       }
     } catch (err: any) {
       Alert.alert("Erro de Download", err.message || "Não foi possível baixar o arquivo.");
@@ -80,14 +73,10 @@ export default function DocumentDetailScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      "Excluir Documento",
-      "Tem certeza que deseja excluir este documento? Esta ação não pode ser desfeita.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Excluir", style: "destructive", onPress: () => deleteMutation.mutate() },
-      ]
-    );
+    Alert.alert("Excluir Documento", "Tem certeza que deseja excluir este documento? Esta ação não pode ser desfeita.", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Excluir", style: "destructive", onPress: () => deleteMutation.mutate() },
+    ]);
   };
 
   const handleUploadVersion = async () => {
@@ -106,18 +95,14 @@ export default function DocumentDetailScreen() {
     }
   };
 
-  if (isLoading) {
-    return <View style={s.center}><ActivityIndicator size="large" color="#6366F1" /></View>;
-  }
+  if (isLoading) return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
 
   if (isError || !data?.data) {
     return (
       <View style={s.center}>
-        <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+        <Ionicons name="alert-circle-outline" size={48} color={c.error} />
         <Text style={s.errorText}>Erro ao carregar documento.</Text>
-        <TouchableOpacity onPress={() => refetch()} style={s.retryBtn}>
-          <Text style={s.retryBtnText}>Tentar Novamente</Text>
-        </TouchableOpacity>
+        <TouchableOpacity onPress={() => refetch()} style={s.retryBtn}><Text style={s.retryBtnText}>Tentar Novamente</Text></TouchableOpacity>
       </View>
     );
   }
@@ -129,90 +114,53 @@ export default function DocumentDetailScreen() {
     <View style={s.container}>
       <View style={[s.header, { paddingTop: 12 + insets.top, minHeight: 64 + insets.top }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backAction}>
-          <Ionicons name="arrow-back" size={24} color="#F8FAFC" />
+          <Ionicons name="arrow-back" size={24} color={c.headerText} />
         </TouchableOpacity>
         <Text style={s.headerTitle} numberOfLines={1}>Documento</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={s.scroll}
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor="#6366F1" />}
-      >
-        {/* Main info card */}
+      <ScrollView contentContainerStyle={s.scroll} refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={c.primary} />}>
         <Card style={s.mainCard}>
           <View style={s.iconRow}>
-            <View style={s.docIconBox}>
-              <Ionicons name="document-text" size={36} color="#6366F1" />
-            </View>
+            <View style={s.docIconBox}><Ionicons name="document-text" size={36} color={c.primary} /></View>
             <View style={s.titleMeta}>
               <Text style={s.docName}>{doc.name}</Text>
               {doc.description && <Text style={s.docDesc}>{doc.description}</Text>}
             </View>
           </View>
-
           <View style={s.divider} />
-
           <View style={s.infoGrid}>
-            <Row label="Tamanho" value={formatBytes(doc.file_size)} />
-            <Row label="Tipo" value={doc.mime_type} />
-            <Row label="Versão" value={`v${doc.version}`} />
-            <Row label="Enviado por" value={doc.uploader?.name ?? "N/D"} />
-            {doc.category && <Row label="Categoria" value={doc.category.name} />}
-            {doc.equipment && <Row label="Equipamento" value={`${doc.equipment.name} (${doc.equipment.internal_code})`} />}
+            <DocRow label="Tamanho" value={formatBytes(doc.file_size)} c={c} />
+            <DocRow label="Tipo" value={doc.mime_type} c={c} />
+            <DocRow label="Versão" value={`v${doc.version}`} c={c} />
+            <DocRow label="Enviado por" value={doc.uploader?.name ?? "N/D"} c={c} />
+            {doc.category && <DocRow label="Categoria" value={doc.category.name} c={c} />}
+            {doc.equipment && <DocRow label="Equipamento" value={`${doc.equipment.name} (${doc.equipment.internal_code})`} c={c} />}
             {can(user, "document:update") ? (
               <View style={s.infoRow}>
                 <Text style={s.infoLabel}>Visível p/ Funcionários</Text>
-                <Switch
-                  value={doc.visible_to_employees}
-                  onValueChange={(v) => visibilityMutation.mutate(v)}
-                  disabled={visibilityMutation.isPending}
-                  trackColor={{ false: "#2E3033", true: "#6366F1" }}
-                  thumbColor="#FFFFFF"
-                />
+                <Switch value={doc.visible_to_employees} onValueChange={(v) => visibilityMutation.mutate(v)} disabled={visibilityMutation.isPending} trackColor={{ false: c.border, true: c.primary }} thumbColor="#FFFFFF" />
               </View>
-            ) : (
-              <Row label="Visível p/ Funcionários" value={doc.visible_to_employees ? "Sim" : "Não"} />
-            )}
-            <Row label="Atualizado em" value={new Date(doc.updated_at).toLocaleDateString("pt-BR")} />
+            ) : <DocRow label="Visível p/ Funcionários" value={doc.visible_to_employees ? "Sim" : "Não"} c={c} />}
+            <DocRow label="Atualizado em" value={new Date(doc.updated_at).toLocaleDateString("pt-BR")} c={c} />
           </View>
         </Card>
 
-        {/* Actions */}
         <TouchableOpacity style={s.downloadBtn} onPress={handleDownload}>
           <Ionicons name="cloud-download-outline" size={20} color="#FFFFFF" />
           <Text style={s.downloadBtnText}>Baixar / Abrir Documento</Text>
         </TouchableOpacity>
 
-        {user?.role === "super_admin" && (
-          <Button
-            title={uploadingVersion ? "Enviando..." : "Nova Versão"}
-            variant="outline"
-            onPress={handleUploadVersion}
-            loading={uploadingVersion}
-            style={s.versionBtn}
-          />
-        )}
+        {user?.role === "super_admin" && <Button title={uploadingVersion ? "Enviando..." : "Nova Versão"} variant="outline" onPress={handleUploadVersion} loading={uploadingVersion} style={s.versionBtn} />}
+        {user?.role === "super_admin" && <Button title="Excluir Documento" variant="danger" onPress={handleDelete} loading={deleteMutation.isPending} style={s.deleteBtn} />}
 
-        {user?.role === "super_admin" && (
-          <Button
-            title="Excluir Documento"
-            variant="danger"
-            onPress={handleDelete}
-            loading={deleteMutation.isPending}
-            style={s.deleteBtn}
-          />
-        )}
-
-        {/* Version history */}
         {versions.length > 0 && (
           <Card style={s.versionCard}>
             <Text style={s.sectionTitle}>Histórico de Versões</Text>
             {versions.map((v) => (
               <View key={v.id} style={s.versionRow}>
-                <View style={s.versionBadge}>
-                  <Text style={s.versionNum}>v{v.version}</Text>
-                </View>
+                <View style={s.versionBadge}><Text style={s.versionNum}>v{v.version}</Text></View>
                 <View style={s.versionMeta}>
                   <Text style={s.versionUploader}>{v.uploader?.name ?? "Desconhecido"}</Text>
                   <Text style={s.versionDate}>{new Date(v.created_at).toLocaleDateString("pt-BR")}</Text>
@@ -228,48 +176,49 @@ export default function DocumentDetailScreen() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function DocRow({ label, value, c }: { label: string; value: string; c: Colors }) {
   return (
-    <View style={s.infoRow}>
-      <Text style={s.infoLabel}>{label}</Text>
-      <Text style={s.infoValue} numberOfLines={2}>{value}</Text>
+    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.divider }}>
+      <Text style={{ color: c.textMuted, fontSize: 13 }}>{label}</Text>
+      <Text style={{ color: c.text, fontSize: 13, fontWeight: "600", maxWidth: "55%", textAlign: "right" }} numberOfLines={2}>{value}</Text>
     </View>
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F0F10" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0F0F10", padding: 24 },
-  errorText: { color: "#EF4444", fontSize: 15, marginTop: 12, textAlign: "center", marginBottom: 16 },
-  retryBtn: { backgroundColor: "#6366F1", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
-  retryBtnText: { color: "#FFFFFF", fontWeight: "600" },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#111214", borderBottomWidth: 1, borderBottomColor: "#2E3033", paddingHorizontal: 16, paddingBottom: 12 },
-  backAction: { padding: 4 },
-  headerTitle: { color: "#F8FAFC", fontSize: 16, fontWeight: "700", maxWidth: "80%" },
-  scroll: { padding: 16, paddingBottom: 40 },
-  mainCard: { backgroundColor: "#151618", marginBottom: 16 },
-  iconRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 16 },
-  docIconBox: { width: 56, height: 56, backgroundColor: "#1A1A2E", borderRadius: 12, justifyContent: "center", alignItems: "center", marginRight: 16 },
-  titleMeta: { flex: 1 },
-  docName: { fontSize: 16, fontWeight: "700", color: "#F8FAFC", marginBottom: 4 },
-  docDesc: { fontSize: 13, color: "#64748B", lineHeight: 18 },
-  divider: { height: 1, backgroundColor: "#212225", marginBottom: 16 },
-  infoGrid: { gap: 2 },
-  infoRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#212225" },
-  infoLabel: { color: "#64748B", fontSize: 13 },
-  infoValue: { color: "#E2E8F0", fontSize: 13, fontWeight: "600", maxWidth: "55%", textAlign: "right" },
-  downloadBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: "#6366F1", borderRadius: 10, padding: 16, marginBottom: 12 },
-  downloadBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
-  versionBtn: { marginBottom: 12 },
-  deleteBtn: { marginBottom: 20 },
-  versionCard: { backgroundColor: "#151618" },
-  sectionTitle: { fontSize: 15, fontWeight: "700", color: "#F8FAFC", marginBottom: 16 },
-  versionRow: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#212225" },
-  versionBadge: { backgroundColor: "#1A1A2E", borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, marginRight: 12 },
-  versionNum: { color: "#818CF8", fontSize: 12, fontWeight: "700" },
-  versionMeta: { flex: 1 },
-  versionUploader: { color: "#E2E8F0", fontSize: 13, fontWeight: "600" },
-  versionDate: { color: "#64748B", fontSize: 11 },
-  versionNotes: { color: "#94A3B8", fontSize: 12, marginTop: 2 },
-  versionSize: { color: "#475569", fontSize: 11 },
-});
+function makeStyles(c: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: c.bg, padding: 24 },
+    errorText: { color: c.error, fontSize: 15, marginTop: 12, textAlign: "center", marginBottom: 16 },
+    retryBtn: { backgroundColor: c.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
+    retryBtnText: { color: "#FFFFFF", fontWeight: "600" },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: c.header, borderBottomWidth: 1, borderBottomColor: c.border, paddingHorizontal: 16, paddingBottom: 12 },
+    backAction: { padding: 4 },
+    headerTitle: { color: c.headerText, fontSize: 16, fontWeight: "700", maxWidth: "80%" },
+    scroll: { padding: 16, paddingBottom: 40 },
+    mainCard: { marginBottom: 16 },
+    iconRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 16 },
+    docIconBox: { width: 56, height: 56, backgroundColor: c.primaryLight, borderRadius: 12, justifyContent: "center", alignItems: "center", marginRight: 16 },
+    titleMeta: { flex: 1 },
+    docName: { fontSize: 16, fontWeight: "700", color: c.text, marginBottom: 4 },
+    docDesc: { fontSize: 13, color: c.textMuted, lineHeight: 18 },
+    divider: { height: 1, backgroundColor: c.divider, marginBottom: 16 },
+    infoGrid: { gap: 2 },
+    infoRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.divider },
+    infoLabel: { color: c.textMuted, fontSize: 13 },
+    downloadBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: c.primary, borderRadius: 10, padding: 16, marginBottom: 12 },
+    downloadBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
+    versionBtn: { marginBottom: 12 },
+    deleteBtn: { marginBottom: 20 },
+    versionCard: {},
+    sectionTitle: { fontSize: 15, fontWeight: "700", color: c.text, marginBottom: 16 },
+    versionRow: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.divider },
+    versionBadge: { backgroundColor: c.primaryLight, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, marginRight: 12 },
+    versionNum: { color: c.primary, fontSize: 12, fontWeight: "700" },
+    versionMeta: { flex: 1 },
+    versionUploader: { color: c.text, fontSize: 13, fontWeight: "600" },
+    versionDate: { color: c.textMuted, fontSize: 11 },
+    versionNotes: { color: c.textSub, fontSize: 12, marginTop: 2 },
+    versionSize: { color: c.textMuted, fontSize: 11 },
+  });
+}
