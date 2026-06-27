@@ -14,7 +14,7 @@ export default function AppLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="equipment/[id]" />
       <Stack.Screen name="equipment/new" />
-      <Stack.Screen name="equipment/[id]_edit" />
+      <Stack.Screen name="equipment/edit/[id]" />
       <Stack.Screen name="equipment/scan" />
       <Stack.Screen name="tickets/[id]" />
       <Stack.Screen name="tickets/new" />

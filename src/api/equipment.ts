@@ -69,5 +69,19 @@ export const equipmentApi = {
 
   async getQrToken(token: string): Promise<any> {
     return apiFetch<any>(`/api/equipment/qr/${token}`);
-  }
+  },
+
+  async saveCalibrationPoints(
+    equipmentId: string,
+    points: Array<{ point_value: string; criterion: string; error_tolerance: number | null; sort_order: number }>
+  ): Promise<{ data: any[] }> {
+    return apiFetch<{ data: any[] }>(`/api/equipment/${equipmentId}/calibration-points`, {
+      method: "POST",
+      body: { points },
+    });
+  },
+
+  async getCalibrationPoints(equipmentId: string): Promise<{ data: any[] }> {
+    return apiFetch<{ data: any[] }>(`/api/equipment/${equipmentId}/calibration-points`);
+  },
 };

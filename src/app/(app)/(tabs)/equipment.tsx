@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, TextInput, ScrollView } from "react-native";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, TextInput, ScrollView, Image } from "react-native";
 import { useAuth } from "../../../auth/AuthProvider";
 import { can } from "../../../auth/permissions";
 import { CustomHeader } from "../../../components/ui/CustomHeader";
@@ -137,9 +137,13 @@ export default function EquipmentListScreen() {
             <TouchableOpacity onPress={() => router.push(`/(app)/equipment/${item.id}`)}>
               <View style={s.equipmentCard}>
                 <View style={s.cardLeft}>
-                  <View style={s.cardIcon}>
-                    <Ionicons name="cube-outline" size={18} color={c.primary} />
-                  </View>
+                  {item.image_url ? (
+                    <Image source={{ uri: item.image_url }} style={s.cardPhoto} />
+                  ) : (
+                    <View style={s.cardIcon}>
+                      <Ionicons name="cube-outline" size={18} color={c.primary} />
+                    </View>
+                  )}
                   <View style={s.cardMeta}>
                     <Text style={s.equipCode}>{item.internal_code}</Text>
                     <Text style={s.equipName} numberOfLines={1}>{item.name}</Text>
@@ -231,6 +235,13 @@ function makeStyles(c: any) {
       backgroundColor: c.primaryLight,
       justifyContent: "center",
       alignItems: "center",
+      marginRight: 12,
+      flexShrink: 0,
+    },
+    cardPhoto: {
+      width: 40,
+      height: 40,
+      borderRadius: 10,
       marginRight: 12,
       flexShrink: 0,
     },

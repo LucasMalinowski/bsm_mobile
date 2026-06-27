@@ -12,10 +12,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { equipmentApi } from "../../../api/equipment";
 import { calibrationApi } from "../../../api/calibration";
 import { maintenanceApi } from "../../../api/maintenances";
+import { documentsApi } from "../../../api/documents";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTheme } from "../../../contexts/ThemeContext";
 import type { Colors } from "../../../constants/colors";
+import { generateEquipmentPDF } from "../../../lib/generateEquipmentPDF";
 
 const ACTION_LABELS: Record<string, string> = {
   created: "Criado",
@@ -45,6 +47,7 @@ export default function EquipmentDetailScreen() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"info" | "calibration" | "history" | "maintenance">("info");
   const [maintModalVisible, setMaintModalVisible] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState(false);
   const [maintDate, setMaintDate] = useState("");
   const [maintDesc, setMaintDesc] = useState("");
   const [maintCost, setMaintCost] = useState("");
@@ -114,6 +117,31 @@ export default function EquipmentDetailScreen() {
     );
   };
 
+  const exportPDF = async () => {
+    if (!eqData?.data) return;
+    setExportingPDF(true);
+    try {
+      const [ptsRes, recsRes, maintRes, docsRes] = await Promise.all([
+        calibrationApi.getPoints(id).catch(() => ({ data: [] })),
+        calibrationApi.getRecords(id).catch(() => ({ data: [] })),
+        maintenanceApi.list(id).catch(() => ({ data: [] })),
+        documentsApi.list({ equipment_id: id }).catch(() => ({ data: [] })),
+      ]);
+      await generateEquipmentPDF(
+        eqData.data as any,
+        (ptsRes as any).data ?? [],
+        (recsRes as any).data ?? [],
+        (maintRes as any).data ?? [],
+        (docsRes as any).data ?? [],
+        ""
+      );
+    } catch (err: any) {
+      Alert.alert("Erro", err.message || "Não foi possível gerar o PDF.");
+    } finally {
+      setExportingPDF(false);
+    }
+  };
+
   const formatDateStr = (dateStr: string | null) => {
     if (!dateStr) return "N/A";
     try {
@@ -162,7 +190,12 @@ export default function EquipmentDetailScreen() {
         <Text style={s.headerTitle} numberOfLines={1}>
           Detalhes do Equipamento
         </Text>
-        <View style={{ width: 24 }} />
+        <TouchableOpacity onPress={exportPDF} disabled={exportingPDF} style={s.pdfBtn}>
+          {exportingPDF
+            ? <ActivityIndicator size="small" color={c.headerText} />
+            : <Ionicons name="download-outline" size={20} color={c.headerText} />
+          }
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -280,7 +313,7 @@ export default function EquipmentDetailScreen() {
                 <Button
                   title="Editar Equipamento"
                   variant="outline"
-                  onPress={() => router.push({ pathname: "/(app)/equipment/[id]_edit" as any, params: { id } })}
+                  onPress={() => router.push({ pathname: "/(app)/equipment/edit/[id]" as any, params: { id } })}
                   style={s.actionBtn}
                 />
               )}
@@ -565,6 +598,12 @@ function makeStyles(c: Colors) {
     },
     backAction: {
       padding: 4,
+    },
+    pdfBtn: {
+      width: 32,
+      height: 32,
+      justifyContent: "center",
+      alignItems: "center",
     },
     headerTitle: {
       color: c.headerText,

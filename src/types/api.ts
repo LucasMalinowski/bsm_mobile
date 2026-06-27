@@ -10,6 +10,7 @@ export type Permission =
   | "ticket:update"
   | "ticket:delete"
   | "ticket:assign"
+  | "ticket:comment"
   | "document:read"
   | "document:upload"
   | "document:update"
@@ -173,6 +174,8 @@ export interface Ticket {
   picked_up_at: string | null;
   returned_at: string | null;
   closed_at: string | null;
+  finalization_reason: string | null;
+  finalization_notes: string | null;
   created_at: string;
   updated_at: string;
   equipment?: { id: string; name: string; internal_code: string };
@@ -211,6 +214,8 @@ export interface UpdateTicketDTO {
   equipment_id?: string | null;
   assigned_to?: string | null;
   photo_url?: string | null;
+  finalization_reason?: string;
+  finalization_notes?: string;
 }
 
 export interface CreateCommentDTO {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, TextInput, Alert, KeyboardAvoidingView, Platform, Image, RefreshControl, Modal, FlatList,
@@ -14,7 +14,8 @@ import { Card } from "../../../components/ui/Card";
 import { Badge } from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
 import { ticketsApi } from "../../../api/tickets";
-import { TicketStatus } from "../../../types/api";
+import { supabase } from "../../../lib/supabase";
+import { TicketStatus, TicketComment } from "../../../types/api";
 import { differenceInDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useTheme } from "../../../contexts/ThemeContext";
@@ -32,6 +33,14 @@ const STATUS_LABELS: Record<TicketStatus, string> = {
   open: "Aberto", in_progress: "Em Andamento", waiting: "Aguardando", resolved: "Resolvido", closed: "Fechado",
 };
 
+const FINALIZATION_REASONS = [
+  "Finalizado",
+  "Descartado",
+  "Peça indisponível",
+  "Aguardando fabricante",
+  "Outro",
+];
+
 export default function TicketDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -47,6 +56,9 @@ export default function TicketDetailScreen() {
   const [editDescription, setEditDescription] = useState("");
   const [editPriority, setEditPriority] = useState<"low" | "medium" | "high" | "critical">("medium");
   const [assignModalVisible, setAssignModalVisible] = useState(false);
+  const [finalizationModalVisible, setFinalizationModalVisible] = useState(false);
+  const [finalizationReason, setFinalizationReason] = useState("");
+  const [finalizationNotes, setFinalizationNotes] = useState("");
 
   const { data: usersData } = useQuery({ queryKey: ["users-assignable"], queryFn: () => usersApi.list(), enabled: assignModalVisible });
 
@@ -70,19 +82,55 @@ export default function TicketDetailScreen() {
     onError: (err: any) => Alert.alert("Erro", err.message || "Não foi possível alterar o status."),
   });
 
+  const finalizeMutation = useMutation({
+    mutationFn: (p: { finalization_reason: string; finalization_notes: string }) =>
+      ticketsApi.update(id, { status: "closed", ...p }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ticket", id] });
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      setFinalizationModalVisible(false);
+    },
+    onError: (err: any) => Alert.alert("Erro", err.message || "Não foi possível finalizar o chamado."),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => ticketsApi.delete(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tickets"] }); router.replace("/(app)/(tabs)/tickets"); },
     onError: (err: any) => Alert.alert("Erro", err.message || "Não foi possível excluir o chamado."),
   });
 
+  useEffect(() => {
+    if (!id) return;
+    const ch = supabase
+      .channel(`ticket-comments-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "ticket_comments", filter: `ticket_id=eq.${id}` },
+        ({ new: row }) => {
+          queryClient.setQueryData(["ticket", id], (old: any) => {
+            if (!old?.data) return old;
+            const existing: TicketComment[] = old.data.comments ?? [];
+            if (existing.find((c) => c.id === (row as TicketComment).id)) return old;
+            return { ...old, data: { ...old.data, comments: [...existing, row as TicketComment] } };
+          });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [id]);
+
   const handleAddComment = async () => {
     if (!comment.trim()) return;
     setSubmittingComment(true);
     try {
-      await ticketsApi.addComment(id, comment.trim());
+      const res = await ticketsApi.addComment(id, comment.trim());
       setComment("");
-      queryClient.invalidateQueries({ queryKey: ["ticket", id] });
+      queryClient.setQueryData(["ticket", id], (old: any) => {
+        if (!old?.data) return old;
+        const existing: TicketComment[] = old.data.comments ?? [];
+        if (existing.find((c) => c.id === res.data.id)) return old;
+        return { ...old, data: { ...old.data, comments: [...existing, res.data] } };
+      });
     } catch (err: any) {
       Alert.alert("Erro", err.message || "Não foi possível adicionar o comentário.");
     } finally {
@@ -95,6 +143,12 @@ export default function TicketDetailScreen() {
       { text: "Cancelar", style: "cancel" },
       { text: "Excluir", style: "destructive", onPress: () => deleteMutation.mutate() },
     ]);
+  };
+
+  const openFinalization = () => {
+    setFinalizationReason("");
+    setFinalizationNotes("");
+    setFinalizationModalVisible(true);
   };
 
   if (isLoading) return <View style={s.center}><ActivityIndicator size="large" color={c.primary} /></View>;
@@ -142,6 +196,12 @@ export default function TicketDetailScreen() {
             )}
             <View style={s.metaItem}><Ionicons name="person-outline" size={14} color={c.textMuted} /><Text style={s.metaValue}>{ticket.creator?.name ?? "Desconhecido"}</Text></View>
             {ticket.assignee && <View style={s.metaItem}><Ionicons name="person-add-outline" size={14} color={c.textMuted} /><Text style={s.metaValue}>{ticket.assignee.name}</Text></View>}
+            {ticket.finalization_reason && (
+              <View style={s.metaItem}>
+                <Ionicons name="checkmark-circle-outline" size={14} color={c.textMuted} />
+                <Text style={s.metaValue}>{ticket.finalization_reason}</Text>
+              </View>
+            )}
           </View>
         </Card>
 
@@ -159,7 +219,14 @@ export default function TicketDetailScreen() {
             <Text style={s.sectionLabel}>Alterar Status</Text>
             <View style={s.statusBtns}>
               {nextStatuses.map((st) => (
-                <TouchableOpacity key={st} onPress={() => statusMutation.mutate(st)} disabled={statusMutation.isPending} style={[s.statusBtn, statusMutation.isPending && { opacity: 0.5 }]}>
+                <TouchableOpacity
+                  key={st}
+                  onPress={() =>
+                    st === "closed" ? openFinalization() : statusMutation.mutate(st)
+                  }
+                  disabled={statusMutation.isPending || finalizeMutation.isPending}
+                  style={[s.statusBtn, (statusMutation.isPending || finalizeMutation.isPending) && { opacity: 0.5 }]}
+                >
                   <Text style={s.statusBtnText}>→ {STATUS_LABELS[st]}</Text>
                 </TouchableOpacity>
               ))}
@@ -171,34 +238,50 @@ export default function TicketDetailScreen() {
           <View style={s.mgmtRow}>
             <Button title="Editar" variant="outline" onPress={() => { setEditTitle(ticket.title); setEditDescription(ticket.description); setEditPriority(ticket.priority); setEditModalVisible(true); }} style={s.halfBtn} />
             {can(user, "ticket:assign") && <Button title="Atribuir" variant="outline" onPress={() => setAssignModalVisible(true)} style={s.halfBtn} />}
+            {ticket.status !== "closed" && (
+              <Button title="Finalizar" variant="primary" onPress={openFinalization} style={s.halfBtn} />
+            )}
             {can(user, "ticket:delete") && <Button title="Excluir" variant="danger" onPress={handleDelete} style={s.halfBtn} />}
           </View>
         )}
 
         <Text style={s.commentsTitle}>Comentários ({comments.length})</Text>
+
         {comments.length === 0 ? (
           <Card style={s.emptyCard}><Text style={s.emptyText}>Sem comentários ainda.</Text></Card>
         ) : (
-          comments.map((cm) => (
-            <Card key={cm.id} style={s.commentCard}>
-              <View style={s.commentHeader}>
-                <Text style={s.commentAuthor}>{cm.user?.name ?? "Usuário"}</Text>
-                <Text style={s.commentDate}>{new Date(cm.created_at).toLocaleDateString("pt-BR")}</Text>
-              </View>
-              <Text style={s.commentBody}>{cm.body}</Text>
-            </Card>
-          ))
+          <View style={s.chatContainer}>
+            {comments.map((cm) => {
+              const isSelf = cm.user_id === user?.id;
+              return (
+                <View key={cm.id} style={[s.bubbleWrapper, isSelf ? s.bubbleRight : s.bubbleLeft]}>
+                  {!isSelf && (
+                    <Text style={s.bubbleSender}>{cm.user?.name ?? "Usuário"}</Text>
+                  )}
+                  <View style={[s.bubble, isSelf ? s.bubbleSelf : s.bubbleOther]}>
+                    <Text style={[s.bubbleText, isSelf ? s.bubbleTextSelf : s.bubbleTextOther]}>
+                      {cm.body}
+                    </Text>
+                  </View>
+                  <Text style={[s.bubbleTime, isSelf ? { textAlign: "right" } : { textAlign: "left" }]}>
+                    {format(new Date(cm.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
         )}
 
-        {can(user, "ticket:update") && (
+        {can(user, "ticket:comment") && (
           <Card style={s.addCommentCard}>
             <Text style={s.sectionLabel}>Adicionar Comentário</Text>
             <TextInput value={comment} onChangeText={setComment} placeholder="Escreva um comentário..." placeholderTextColor={c.textMuted} style={s.commentInput} multiline numberOfLines={3} />
-            <Button title="Publicar Comentário" onPress={handleAddComment} loading={submittingComment} disabled={!comment.trim()} style={{ marginTop: 8, marginVertical: 0 }} />
+            <Button title="Publicar" onPress={handleAddComment} loading={submittingComment} disabled={!comment.trim()} style={{ marginTop: 8, marginVertical: 0 }} />
           </Card>
         )}
       </ScrollView>
 
+      {/* Assign Modal */}
       <Modal visible={assignModalVisible} animationType="slide" transparent onRequestClose={() => setAssignModalVisible(false)}>
         <View style={s.modalOverlay}>
           <View style={s.modalSheet}>
@@ -225,6 +308,7 @@ export default function TicketDetailScreen() {
         </View>
       </Modal>
 
+      {/* Edit Modal */}
       <Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={() => setEditModalVisible(false)}>
         <View style={s.modalOverlay}>
           <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={s.modalSheet}>
@@ -252,6 +336,50 @@ export default function TicketDetailScreen() {
                 if (!editTitle.trim() || !editDescription.trim()) { Alert.alert("Atenção", "Título e descrição são obrigatórios."); return; }
                 updateMutation.mutate({ title: editTitle.trim(), description: editDescription.trim(), priority: editPriority });
               }} loading={updateMutation.isPending} style={s.modalSaveBtn} />
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      {/* Finalization Modal */}
+      <Modal visible={finalizationModalVisible} animationType="slide" transparent onRequestClose={() => setFinalizationModalVisible(false)}>
+        <View style={s.modalOverlay}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={s.modalSheet}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Finalizar Chamado</Text>
+              <TouchableOpacity onPress={() => setFinalizationModalVisible(false)}><Ionicons name="close" size={22} color={c.textSub} /></TouchableOpacity>
+            </View>
+            <ScrollView keyboardShouldPersistTaps="handled" style={s.modalScroll}>
+              <Text style={s.editLabel}>Motivo de encerramento *</Text>
+              <View style={s.editChips}>
+                {FINALIZATION_REASONS.map((r) => (
+                  <TouchableOpacity key={r} onPress={() => setFinalizationReason(r)} style={[s.editChip, finalizationReason === r && s.editChipActive]}>
+                    <Text style={[s.editChipText, finalizationReason === r && s.editChipTextActive]}>{r}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={s.editLabel}>Observações <Text style={{ fontWeight: "400", color: c.textMuted }}>(opcional)</Text></Text>
+              <TextInput
+                value={finalizationNotes}
+                onChangeText={setFinalizationNotes}
+                placeholder="Descreva detalhes adicionais..."
+                placeholderTextColor={c.textMuted}
+                style={[s.editInput, s.editTextArea]}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                maxLength={2000}
+              />
+              <Button
+                title="Confirmar Finalização"
+                onPress={() => {
+                  if (!finalizationReason) { Alert.alert("Atenção", "Selecione um motivo de encerramento."); return; }
+                  finalizeMutation.mutate({ finalization_reason: finalizationReason, finalization_notes: finalizationNotes });
+                }}
+                loading={finalizeMutation.isPending}
+                disabled={!finalizationReason}
+                style={s.modalSaveBtn}
+              />
             </ScrollView>
           </KeyboardAvoidingView>
         </View>
@@ -284,17 +412,24 @@ function makeStyles(c: Colors) {
     statusBtns: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     statusBtn: { paddingHorizontal: 14, paddingVertical: 8, backgroundColor: c.surface2, borderRadius: 8, borderWidth: 1, borderColor: c.border },
     statusBtnText: { color: c.text, fontSize: 13, fontWeight: "600" },
-    mgmtRow: { flexDirection: "row", gap: 12, marginBottom: 24 },
-    halfBtn: { flex: 1, marginVertical: 0 },
+    mgmtRow: { flexDirection: "row", gap: 8, marginBottom: 24, flexWrap: "wrap" },
+    halfBtn: { flex: 1, marginVertical: 0, minWidth: 80 },
     commentsTitle: { fontSize: 16, fontWeight: "700", color: c.text, marginBottom: 12 },
     emptyCard: { alignItems: "center", paddingVertical: 20 },
     emptyText: { color: c.textMuted, fontSize: 13 },
-    commentCard: { marginBottom: 10 },
-    commentHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
-    commentAuthor: { fontSize: 13, fontWeight: "700", color: c.text },
-    commentDate: { fontSize: 11, color: c.textMuted },
-    commentBody: { fontSize: 13, color: c.textSub, lineHeight: 18 },
-    addCommentCard: { marginTop: 8 },
+    chatContainer: { gap: 8, marginBottom: 16 },
+    bubbleWrapper: { maxWidth: "80%", marginBottom: 4 },
+    bubbleLeft: { alignSelf: "flex-start" },
+    bubbleRight: { alignSelf: "flex-end" },
+    bubbleSender: { fontSize: 11, color: c.textMuted, marginBottom: 3, marginLeft: 4 },
+    bubble: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
+    bubbleSelf: { backgroundColor: c.primary, borderBottomRightRadius: 4 },
+    bubbleOther: { backgroundColor: c.surface2, borderBottomLeftRadius: 4 },
+    bubbleText: { fontSize: 14, lineHeight: 19 },
+    bubbleTextSelf: { color: "#FFFFFF" },
+    bubbleTextOther: { color: c.text },
+    bubbleTime: { fontSize: 10, color: c.textMuted, marginTop: 3, marginHorizontal: 4 },
+    addCommentCard: { marginTop: 4 },
     commentInput: { backgroundColor: c.bg, borderWidth: 1, borderColor: c.border, borderRadius: 8, padding: 12, color: c.text, fontSize: 14, minHeight: 80, textAlignVertical: "top" },
     modalOverlay: { flex: 1, backgroundColor: c.overlay, justifyContent: "flex-end" },
     modalSheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32 },
